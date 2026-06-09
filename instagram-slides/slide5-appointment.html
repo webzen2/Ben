@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 50%, #0a0a0a 100%);
+    font-family: 'Arial', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(168,85,247,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168,85,247,0.07) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .glow-orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.35; }
+  .orb1 { width: 400px; height: 400px; background: #a855f7; bottom: -120px; right: -80px; }
+  .orb2 { width: 350px; height: 350px; background: #3b82f6; top: -100px; left: -80px; }
+  .content {
+    position: relative; z-index: 10;
+    width: 100%; padding: 72px 80px;
+  }
+  .number {
+    font-size: 140px; font-weight: 900;
+    color: rgba(168,85,247,0.08);
+    position: absolute; top: 40px; right: 60px;
+    font-family: 'Arial Black', Arial;
+  }
+  .icon-wrap {
+    width: 90px; height: 90px; border-radius: 24px;
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px; margin-bottom: 36px;
+    box-shadow: 0 0 40px rgba(168,85,247,0.4);
+  }
+  .label {
+    font-size: 20px; font-weight: 700; letter-spacing: 3px;
+    color: #a855f7; text-transform: uppercase; margin-bottom: 20px;
+  }
+  h2 {
+    font-size: 64px; font-weight: 900; line-height: 1.05;
+    color: #fff; margin-bottom: 32px;
+  }
+  h2 span { background: linear-gradient(135deg,#c084fc,#a855f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .desc {
+    font-size: 27px; color: rgba(255,255,255,0.65);
+    line-height: 1.6; max-width: 820px; margin-bottom: 48px;
+  }
+  .cards {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  .card {
+    background: rgba(168,85,247,0.1);
+    border: 1px solid rgba(168,85,247,0.25);
+    border-radius: 20px; padding: 28px;
+  }
+  .card-icon { font-size: 38px; margin-bottom: 14px; }
+  .card-title { font-size: 22px; font-weight: 700; color: #c084fc; margin-bottom: 8px; }
+  .card-text { font-size: 19px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+  .slide-num {
+    position: absolute; bottom: 40px; right: 50px;
+    font-size: 20px; color: rgba(255,255,255,0.2); font-weight: 600; letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+<div class="content">
+  <div class="number">04</div>
+  <div class="icon-wrap">📅</div>
+  <div class="label">Automation #4</div>
+  <h2>Appointment<br><span>Booking & Reminders</span></h2>
+  <p class="desc">
+    Let customers book themselves online — then automatically
+    send confirmations, reminders, and no-show follow-ups.
+  </p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">✅</div>
+      <div class="card-title">Instant Confirmation</div>
+      <div class="card-text">Booked? They get a text + email immediately</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">⏰</div>
+      <div class="card-title">Reminders</div>
+      <div class="card-text">Auto reminders 24 hrs & 1 hr before the appointment</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">❌</div>
+      <div class="card-title">No-Show Recovery</div>
+      <div class="card-text">Missed their slot? Auto follow-up to rebook</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔗</div>
+      <div class="card-title">24/7 Booking</div>
+      <div class="card-text">Customers book even when you're asleep</div>
+    </div>
+  </div>
+</div>
+<div class="slide-num">05 / 08</div>
+</body>
+</html>

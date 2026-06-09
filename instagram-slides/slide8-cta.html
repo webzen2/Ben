@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+    font-family: 'Arial', sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.08) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .glow-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.45; }
+  .orb1 { width: 500px; height: 500px; background: #6366f1; top: -200px; left: 50%; transform: translateX(-50%); }
+  .orb2 { width: 350px; height: 350px; background: #a855f7; bottom: -120px; right: -80px; }
+  .orb3 { width: 300px; height: 300px; background: #ec4899; bottom: -80px; left: -60px; }
+  .content {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+    padding: 80px;
+  }
+  .recap {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 48px;
+  }
+  .chip {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.6);
+    font-size: 18px; padding: 8px 18px;
+    border-radius: 50px;
+  }
+  .chip.active {
+    background: rgba(99,102,241,0.2);
+    border-color: rgba(99,102,241,0.5);
+    color: #a5b4fc;
+  }
+  h1 {
+    font-size: 80px; font-weight: 900; line-height: 1.05;
+    background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #c084fc 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 32px;
+  }
+  .sub {
+    font-size: 30px; color: rgba(255,255,255,0.55);
+    max-width: 700px; line-height: 1.6; margin-bottom: 56px;
+  }
+  .sub strong { color: rgba(255,255,255,0.9); }
+  .cta-btn {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff; font-size: 28px; font-weight: 800;
+    padding: 28px 72px; border-radius: 100px;
+    border: none; cursor: pointer;
+    box-shadow: 0 0 60px rgba(99,102,241,0.5);
+    margin-bottom: 28px; display: block;
+  }
+  .handle {
+    font-size: 24px; color: rgba(255,255,255,0.35);
+    letter-spacing: 1px;
+  }
+  .handle span { color: rgba(255,255,255,0.55); font-weight: 600; }
+  .slide-num {
+    position: absolute; bottom: 40px; right: 50px;
+    font-size: 20px; color: rgba(255,255,255,0.2); font-weight: 600; letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+<div class="glow-orb orb3"></div>
+<div class="content">
+  <div class="recap">
+    <div class="chip active">📱 Missed Call Text-Back</div>
+    <div class="chip active">⭐ Review Requests</div>
+    <div class="chip active">🔁 Lead Follow-Up</div>
+    <div class="chip active">📅 Appointment Reminders</div>
+    <div class="chip active">💬 Web Chat</div>
+    <div class="chip active">🔥 Win-Back Campaigns</div>
+  </div>
+  <h1>All of This.<br>Running 24/7.<br>For Your Business.</h1>
+  <p class="sub">
+    We set everything up. You just <strong>show up and close deals.</strong><br>
+    DM us "AUTOMATE" to get started.
+  </p>
+  <div class="cta-btn">DM us "AUTOMATE" →</div>
+  <div class="handle">Link in bio · <span>Free strategy call available</span></div>
+</div>
+<div class="slide-num">08 / 08</div>
+</body>
+</html>
