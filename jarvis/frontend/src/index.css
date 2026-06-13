@@ -1,0 +1,26 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #020408;
+  --orb-color: #3b82f6;
+  --orb-glow: rgba(59, 130, 246, 0.35);
+  --text: #e2e8f0;
+  --text-dim: #64748b;
+  --card: rgba(15, 23, 42, 0.85);
+  --border: rgba(59, 130, 246, 0.2);
+  --accent: #3b82f6;
+  --success: #22c55e;
+  --danger: #ef4444;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
