@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { speak, startListening, stopListening } from '../agents/voiceAgent.js';
+import { startWakeDetection, stopWakeDetection } from '../agents/wakeDetector.js';
 
 const API = '/api/agents';
+const isElectron = !!window.jarvisDesktop;
 
 const QUICK_ACTIONS = [
   { label: 'Pipeline', icon: '📊', agent: 'client', action: 'pipeline' },
@@ -21,7 +23,9 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [wakeActive, setWakeActive] = useState(false);
   const historyRef = useRef(null);
+  const handleCommandRef = useRef(null);
 
   useEffect(() => {
     onOrbState?.({ listening, speaking });
@@ -37,18 +41,37 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     setLoading(true);
     setResponse('');
 
-    // Browser agent — handle client-side without backend round-trip
-    if (/open|show me|go to|navigate/i.test(command)) {
-      const { data } = await axios.post(`${API}/browser/open`, { command });
-      if (data.url) {
-        window.open(data.url, '_blank');
-        const msg = `Opening ${data.url}`;
+    // Desktop app opener — intercept "open X" commands in Electron
+    if (isElectron && /^(open|launch|start|show me|go to)\s+/i.test(command)) {
+      const appName = command.replace(/^(open|launch|start|show me|go to)\s+/i, '').trim();
+      try {
+        const result = await window.jarvisDesktop.openApp(appName);
+        const msg = result.opened
+          ? `Opening ${result.target}`
+          : `Couldn't open ${appName}: ${result.error}`;
         setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
+        setResponse(msg);
         setSpeaking(true);
         speak(msg, { onEnd: () => setSpeaking(false) });
         setLoading(false);
         return;
-      }
+      } catch {}
+    }
+
+    // Web fallback — browser agent for URL resolution
+    if (!isElectron && /open|show me|go to|navigate/i.test(command)) {
+      try {
+        const { data } = await axios.post(`${API}/browser/open`, { command });
+        if (data.url) {
+          window.open(data.url, '_blank');
+          const msg = `Opening ${data.url}`;
+          setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
+          setSpeaking(true);
+          speak(msg, { onEnd: () => setSpeaking(false) });
+          setLoading(false);
+          return;
+        }
+      } catch {}
     }
 
     try {
@@ -63,7 +86,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       setSpeaking(true);
       speak(reply, { onEnd: () => setSpeaking(false) });
 
-      // If agent returned a panel-worthy payload, open it
       if (data.agent && data.agent !== 'general') {
         onAgentPanel?.({ agent: data.agent, data: data.data });
       }
@@ -74,6 +96,44 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     }
     setLoading(false);
   }, [history, onAgentPanel]);
+
+  handleCommandRef.current = handleCommand;
+
+  // Wake detection: "Jarvis" hotword or double-clap
+  const toggleWake = useCallback(() => {
+    if (wakeActive) {
+      stopWakeDetection();
+      setWakeActive(false);
+    } else {
+      startWakeDetection((trigger) => {
+        // Activated by hotword or clap — start listening
+        setSpeaking(true);
+        speak('Yes, Ben?', {
+          onEnd: () => {
+            setSpeaking(false);
+            setListening(true);
+            startListening({
+              onResult: (text) => {
+                setTranscript(text);
+                setListening(false);
+                handleCommandRef.current?.(text);
+              },
+              onEnd: () => setListening(false),
+            });
+          },
+        });
+      });
+      setWakeActive(true);
+    }
+  }, [wakeActive]);
+
+  // Auto-enable wake detection in Electron
+  useEffect(() => {
+    if (isElectron && !wakeActive) {
+      toggleWake();
+    }
+    return () => { if (wakeActive) stopWakeDetection(); };
+  }, []);
 
   const toggleListen = () => {
     if (listening) {
@@ -103,8 +163,20 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 680, padding: '0 20px' }}>
 
       {/* Status line */}
-      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8, letterSpacing: '0.05em' }}>
-        {listening ? '● LISTENING' : loading ? '◌ PROCESSING' : 'JARVIS · BCAUTOMATIONS OS'}
+      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8, letterSpacing: '0.05em', display: 'flex', gap: 12, alignItems: 'center' }}>
+        <span>{listening ? '● LISTENING' : loading ? '◌ PROCESSING' : 'JARVIS · BCAUTOMATIONS OS'}</span>
+        <button
+          onClick={toggleWake}
+          style={{
+            fontSize: 10, padding: '2px 8px', borderRadius: 10,
+            background: wakeActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${wakeActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            color: wakeActive ? '#86efac' : '#64748b', cursor: 'pointer',
+          }}
+          title={wakeActive ? 'Wake detection ON — say "Jarvis" or double-clap' : 'Enable wake detection'}
+        >
+          {wakeActive ? 'WAKE ON' : 'WAKE OFF'}
+        </button>
       </div>
 
       {/* Transcript / last response */}
@@ -126,7 +198,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
           transition: 'all 0.2s',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
-        title="Hold to speak"
+        title="Click to speak"
       >
         {listening ? '🔴' : '🎙️'}
       </button>
