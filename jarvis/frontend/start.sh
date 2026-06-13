@@ -1,20 +1,33 @@
 #!/bin/bash
-# Jarvis launcher — starts Vite dev server then Electron
+# Jarvis launcher — starts backend (if configured), Vite, then Electron
 
-cd "$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BACKEND_DIR="$SCRIPT_DIR/../backend"
+cd "$SCRIPT_DIR"
 
-# Kill any leftover processes on common Vite ports
+# Kill leftover processes on common Vite ports
 for port in 5173 5174 5175 5176 5177; do
   lsof -ti:$port | xargs kill -9 2>/dev/null
 done
 
-echo "Starting Jarvis..."
+# Try to start backend if .env exists
+if [ -f "$BACKEND_DIR/.env" ]; then
+  echo "Starting Jarvis backend..."
+  cd "$BACKEND_DIR" && npm install --silent && node server.js &
+  BACKEND_PID=$!
+  cd "$SCRIPT_DIR"
+  sleep 2
+  echo "Backend started (PID $BACKEND_PID)"
+else
+  echo "No backend .env found — skipping backend (voice UI still works)"
+fi
 
-# Start Vite and capture the port it binds to
+echo "Starting Vite..."
 npm run dev &
 VITE_PID=$!
 
-# Wait for Vite to be ready (poll up to 15s)
+# Wait for Vite to be ready
+VITE_PORT=""
 for i in $(seq 1 30); do
   sleep 0.5
   for port in 5173 5174 5175 5176 5177; do
@@ -28,13 +41,13 @@ done
 if [ -z "$VITE_PORT" ]; then
   echo "ERROR: Vite failed to start"
   kill $VITE_PID 2>/dev/null
+  kill $BACKEND_PID 2>/dev/null
   exit 1
 fi
 
-echo "Vite running on port $VITE_PORT — launching Electron..."
-
-# Launch Electron with the detected port
+echo "Vite on port $VITE_PORT — launching Electron..."
 VITE_PORT=$VITE_PORT NODE_ENV=development npx electron electron/main.cjs
 
-# When Electron closes, kill Vite too
+# Cleanup on exit
 kill $VITE_PID 2>/dev/null
+kill $BACKEND_PID 2>/dev/null

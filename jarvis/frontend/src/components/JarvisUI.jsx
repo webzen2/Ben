@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { speak, startListening, stopListening } from '../agents/voiceAgent.js';
 import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
-import { playShootToThrill } from '../agents/shootToThrill.js';
 
-const API = '/api/agents';
+const API = import.meta.env.VITE_API_URL || '/api/agents';
 const isElectron = !!window.jarvisDesktop;
 
 export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
@@ -123,9 +122,11 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         onAgentPanel?.({ agent: data.agent, data: data.data });
       }
     } catch (err) {
-      const errMsg = `Error: ${err.response?.data?.error || err.message}`;
-      setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: errMsg }]);
-      speakAndRelisten('Something went wrong.');
+      // Backend not reachable — let the user know and keep listening
+      const msg = 'Backend is offline. Start the Jarvis server to use AI commands.';
+      setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
+      setResponse(msg);
+      speakAndRelisten(msg);
     }
     setLoading(false);
   }, [history, onAgentPanel, speakAndRelisten]);
@@ -138,28 +139,19 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       stopWakeDetection();
       setWakeActive(false);
     } else {
-      startWakeDetection((trigger) => {
-        if (trigger === 'clap') {
-          // Double clap = show window + Shoot to Thrill intro, then listen
-          if (isElectron) window.jarvisDesktop.showWindow();
-          playShootToThrill();
-          setTimeout(() => {
-            beginListening();
-          }, 2200);
-        } else {
-          // Hotword "Jarvis" = show window, greet, then listen
-          if (isElectron) window.jarvisDesktop.showWindow();
-          pauseWakeDetection();
-          setSpeaking(true);
-          speak('Hello Ben.', {
-            onEnd: () => {
-              setSpeaking(false);
-              setTimeout(() => {
-                beginListening();
-              }, 500);
-            },
-          });
-        }
+      startWakeDetection(() => {
+        // Both hotword and clap: show window, greet, then listen
+        if (isElectron) window.jarvisDesktop.showWindow();
+        pauseWakeDetection();
+        setSpeaking(true);
+        speak('Hello Ben.', {
+          onEnd: () => {
+            setSpeaking(false);
+            setTimeout(() => {
+              beginListening();
+            }, 300);
+          },
+        });
       });
       setWakeActive(true);
     }
