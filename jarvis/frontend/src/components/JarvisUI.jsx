@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { speak, startListening, stopListening } from '../agents/voiceAgent.js';
-import { startWakeDetection, stopWakeDetection } from '../agents/wakeDetector.js';
+import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
+import { playShootToThrill } from '../agents/shootToThrill.js';
 
 const API = '/api/agents';
 const isElectron = !!window.jarvisDesktop;
@@ -15,7 +16,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [history, setHistory] = useState([]);
   const [inputText, setInputText] = useState('');
   const [wakeActive, setWakeActive] = useState(false);
-  const [conversing, setConversing] = useState(false);
   const historyRef = useRef(null);
   const handleCommandRef = useRef(null);
 
@@ -27,31 +27,36 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
   }, [history]);
 
-  // After speaking, auto-listen again for conversational flow
-  const speakAndRelisten = useCallback((text) => {
-    setSpeaking(true);
-    setConversing(true);
-    speak(text, {
+  // Start listening for a voice command — pauses wake detection first
+  const beginListening = useCallback(() => {
+    pauseWakeDetection();
+    setListening(true);
+    startListening({
+      onResult: (text) => {
+        setTranscript(text);
+        setListening(false);
+        handleCommandRef.current?.(text);
+      },
       onEnd: () => {
-        setSpeaking(false);
-        // Wait 500ms then re-activate mic
-        setTimeout(() => {
-          setListening(true);
-          startListening({
-            onResult: (result) => {
-              setTranscript(result);
-              setListening(false);
-              handleCommandRef.current?.(result);
-            },
-            onEnd: () => {
-              setListening(false);
-              setConversing(false);
-            },
-          });
-        }, 500);
+        setListening(false);
+        // Resume always-on wake detection
+        resumeWakeDetection();
       },
     });
   }, []);
+
+  // Speak then auto-listen again for back-and-forth
+  const speakAndRelisten = useCallback((text) => {
+    setSpeaking(true);
+    speak(text, {
+      onEnd: () => {
+        setSpeaking(false);
+        setTimeout(() => {
+          beginListening();
+        }, 500);
+      },
+    });
+  }, [beginListening]);
 
   const handleCommand = useCallback(async (command) => {
     if (!command.trim()) return;
@@ -127,41 +132,40 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
 
   handleCommandRef.current = handleCommand;
 
-  // Wake detection: "Jarvis" hotword or double-clap
+  // Wake detection setup
   const toggleWake = useCallback(() => {
     if (wakeActive) {
       stopWakeDetection();
       setWakeActive(false);
     } else {
-      startWakeDetection(() => {
-        setSpeaking(true);
-        speak('Hello Ben.', {
-          onEnd: () => {
-            setSpeaking(false);
-            setTimeout(() => {
-              setListening(true);
-              setConversing(true);
-              startListening({
-                onResult: (text) => {
-                  setTranscript(text);
-                  setListening(false);
-                  handleCommandRef.current?.(text);
-                },
-                onEnd: () => {
-                  setListening(false);
-                  setConversing(false);
-                },
-              });
-            }, 500);
-          },
-        });
+      startWakeDetection((trigger) => {
+        if (trigger === 'clap') {
+          // Double clap = Shoot to Thrill intro, then listen
+          playShootToThrill();
+          setTimeout(() => {
+            beginListening();
+          }, 2200);
+        } else {
+          // Hotword "Jarvis" = greet then listen
+          pauseWakeDetection();
+          setSpeaking(true);
+          speak('Hello Ben.', {
+            onEnd: () => {
+              setSpeaking(false);
+              setTimeout(() => {
+                beginListening();
+              }, 500);
+            },
+          });
+        }
       });
       setWakeActive(true);
     }
-  }, [wakeActive]);
+  }, [wakeActive, beginListening]);
 
+  // Auto-enable wake detection
   useEffect(() => {
-    if (isElectron && !wakeActive) {
+    if (!wakeActive) {
       toggleWake();
     }
     return () => { if (wakeActive) stopWakeDetection(); };
@@ -171,21 +175,9 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     if (listening) {
       stopListening();
       setListening(false);
-      setConversing(false);
+      resumeWakeDetection();
     } else {
-      setListening(true);
-      setConversing(true);
-      startListening({
-        onResult: (text) => {
-          setTranscript(text);
-          setListening(false);
-          handleCommand(text);
-        },
-        onEnd: () => {
-          setListening(false);
-          setConversing(false);
-        },
-      });
+      beginListening();
     }
   };
 
@@ -202,19 +194,16 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       {/* Status line */}
       <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8, letterSpacing: '0.05em', display: 'flex', gap: 12, alignItems: 'center' }}>
         <span>
-          {listening ? 'LISTENING' : speaking ? 'SPEAKING' : loading ? 'PROCESSING' : conversing ? 'CONVERSING' : 'JARVIS'}
+          {listening ? 'LISTENING' : speaking ? 'SPEAKING' : loading ? 'PROCESSING' : 'JARVIS'}
         </span>
-        <button
-          onClick={toggleWake}
-          style={{
-            fontSize: 10, padding: '2px 8px', borderRadius: 10,
-            background: wakeActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${wakeActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-            color: wakeActive ? '#86efac' : '#64748b', cursor: 'pointer',
-          }}
-        >
-          {wakeActive ? 'WAKE ON' : 'WAKE OFF'}
-        </button>
+        <span style={{
+          fontSize: 10, padding: '2px 8px', borderRadius: 10,
+          background: wakeActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+          border: `1px solid ${wakeActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+          color: wakeActive ? '#86efac' : '#64748b',
+        }}>
+          {wakeActive ? 'ALWAYS ON' : 'OFF'}
+        </span>
       </div>
 
       {/* Transcript / last response */}
