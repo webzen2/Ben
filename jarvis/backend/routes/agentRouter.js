@@ -8,6 +8,7 @@ import { socialAgent } from '../agents/socialAgent.js';
 import { calendarAgent } from '../agents/calendarAgent.js';
 import { browserAgent } from '../agents/browserAgent.js';
 import { brainAgent } from '../agents/brainAgent.js';
+import { taskAgent } from '../agents/taskAgent.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -76,6 +77,17 @@ router.get('/calendar/today', async (_, res) => {
 });
 router.post('/calendar/event', async (req, res) => {
   res.json(await calendarAgent.createEvent(req.body));
+});
+
+// ── Task / Ideas Agent ────────────────────────────────────────
+router.get('/tasks', async (req, res) => {
+  res.json(await taskAgent.getTasks(req.query.status || 'open'));
+});
+router.post('/tasks', async (req, res) => {
+  res.json(await taskAgent.addTask(req.body));
+});
+router.patch('/tasks/:id/close', async (req, res) => {
+  res.json(await taskAgent.closeTask(req.params.id));
 });
 
 // ── Browser Agent ─────────────────────────────────────────────

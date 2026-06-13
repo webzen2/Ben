@@ -32,18 +32,38 @@ export function stopListening() {
   recognition = null;
 }
 
-export function speak(text) {
+function getPreferredVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find(v => /Google UK English Male|Daniel|Alex/i.test(v.name)) || null;
+}
+
+export function speak(text, { onStart, onEnd } = {}) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
+
   const utt = new SpeechSynthesisUtterance(text);
   utt.rate = 1.0;
   utt.pitch = 0.9;
   utt.volume = 1;
 
-  // Prefer a deeper male voice if available
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => /Google UK English Male|Daniel|Alex/i.test(v.name));
-  if (preferred) utt.voice = preferred;
+  utt.onstart = () => onStart?.();
+  utt.onend = () => onEnd?.();
+  utt.onerror = () => onEnd?.();
 
-  window.speechSynthesis.speak(utt);
+  const doSpeak = () => {
+    const preferred = getPreferredVoice();
+    if (preferred) utt.voice = preferred;
+    window.speechSynthesis.speak(utt);
+    onStart?.();
+  };
+
+  // Voices may not be loaded on first call
+  if (window.speechSynthesis.getVoices().length > 0) {
+    doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      doSpeak();
+    };
+  }
 }

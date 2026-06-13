@@ -10,16 +10,22 @@ const QUICK_ACTIONS = [
   { label: 'Intel', icon: '🔍', agent: 'research', action: 'intel' },
   { label: 'Social', icon: '📱', agent: 'social', action: 'analytics' },
   { label: 'Calendar', icon: '📅', agent: 'calendar', action: 'today' },
+  { label: 'Tasks', icon: '✅', agent: 'tasks', action: 'list' },
 ];
 
-export default function JarvisUI({ onAgentPanel, onBriefing }) {
+export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [inputText, setInputText] = useState('');
   const historyRef = useRef(null);
+
+  useEffect(() => {
+    onOrbState?.({ listening, speaking });
+  }, [listening, speaking, onOrbState]);
 
   useEffect(() => {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
@@ -38,7 +44,8 @@ export default function JarvisUI({ onAgentPanel, onBriefing }) {
         window.open(data.url, '_blank');
         const msg = `Opening ${data.url}`;
         setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
-        speak(msg);
+        setSpeaking(true);
+        speak(msg, { onEnd: () => setSpeaking(false) });
         setLoading(false);
         return;
       }
@@ -53,7 +60,8 @@ export default function JarvisUI({ onAgentPanel, onBriefing }) {
       const reply = data.response || 'Done.';
       setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: reply }]);
       setResponse(reply);
-      speak(reply);
+      setSpeaking(true);
+      speak(reply, { onEnd: () => setSpeaking(false) });
 
       // If agent returned a panel-worthy payload, open it
       if (data.agent && data.agent !== 'general') {

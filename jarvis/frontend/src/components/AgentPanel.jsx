@@ -14,10 +14,28 @@ const panelConfig = {
     ),
   },
   files: {
-    title: '📝 Notes',
+    title: '📝 Notes & Files',
     fetch: () => axios.get(`${API}/files/notes`),
-    render: (d) => (
+    render: (d, refetch) => (
       <div>
+        <label style={{
+          display: 'block', marginBottom: 16, padding: '12px 16px',
+          border: '1px dashed rgba(59,130,246,0.4)', borderRadius: 8,
+          color: '#64748b', fontSize: 13, cursor: 'pointer', textAlign: 'center',
+        }}>
+          📎 Upload PDF / Text file
+          <input type="file" accept=".pdf,.txt" style={{ display: 'none' }}
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const form = new FormData();
+              form.append('file', file);
+              const { data } = await axios.post(`${API}/files/upload`, form);
+              alert(`Summary saved:\n\n${data.summary}`);
+            }}
+          />
+        </label>
+        {(d || []).length === 0 && <p style={{ color: '#64748b', fontSize: 13 }}>No notes yet. Say "save note" or upload a file.</p>}
         {(d || []).map((n, i) => (
           <div key={i} style={{ marginBottom: 12, padding: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
             <div style={{ fontSize: 11, color: '#64748b' }}>{n.topic} · {new Date(n.created_at).toLocaleDateString()}</div>
@@ -51,6 +69,27 @@ const panelConfig = {
       <pre style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>
         {JSON.stringify(d, null, 2)}
       </pre>
+    ),
+  },
+  tasks: {
+    title: '✅ Tasks & Ideas',
+    fetch: () => axios.get(`${API}/tasks`),
+    render: (d) => (
+      <div>
+        {(d || []).length === 0 && <p style={{ color: '#64748b', fontSize: 13 }}>No open tasks.</p>}
+        {(d || []).map((t, i) => (
+          <div key={i} style={{ marginBottom: 10, padding: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{t.title}</div>
+              {t.body && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{t.body}</div>}
+            </div>
+            <button
+              onClick={() => axios.patch(`${API}/tasks/${t.id}/close`).then(() => window.location.reload())}
+              style={{ background: 'none', border: '1px solid rgba(34,197,94,0.3)', color: '#86efac', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 11 }}
+            >Done</button>
+          </div>
+        ))}
+      </div>
     ),
   },
   calendar: {

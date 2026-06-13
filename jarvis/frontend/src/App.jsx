@@ -8,8 +8,8 @@ import MorningBriefing from './components/MorningBriefing.jsx';
 export default function App() {
   const [activePanel, setActivePanel] = useState(null);
   const [showBriefing, setShowBriefing] = useState(false);
+  const [orbState, setOrbState] = useState({ listening: false, speaking: false });
 
-  // Auto-show briefing on first load in the morning
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 11) setShowBriefing(true);
@@ -25,8 +25,12 @@ export default function App() {
         alignItems: 'center', justifyContent: 'center',
         zIndex: 10,
       }}>
-        <GlowOrb />
-        <JarvisUI onAgentPanel={setActivePanel} onBriefing={() => setShowBriefing(true)} />
+        <GlowOrb listening={orbState.listening} speaking={orbState.speaking} />
+        <JarvisUI
+          onAgentPanel={setActivePanel}
+          onBriefing={() => setShowBriefing(true)}
+          onOrbState={setOrbState}
+        />
       </div>
 
       {activePanel && (

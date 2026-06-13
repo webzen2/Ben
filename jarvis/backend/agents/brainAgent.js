@@ -14,6 +14,7 @@ const AGENT_KEYWORDS = {
   social: ['post', 'instagram', 'facebook', 'schedule.*post', 'analytics', 'engagement', 'reply'],
   calendar: ['calendar', 'schedule', 'event', 'meeting', 'appointment', 'today', 'tomorrow'],
   browser: ['open', 'show me', 'go to', 'navigate', 'website', 'url'],
+  tasks: ['task', 'idea', 'remind me', 'todo', 'to.?do', 'add.*task', 'save.*idea'],
 };
 
 export const brainAgent = {
