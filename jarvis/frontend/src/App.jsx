@@ -11,24 +11,12 @@ export default function App() {
   const [activePanel, setActivePanel] = useState(null);
   const [showBriefing, setShowBriefing] = useState(false);
   const [orbState, setOrbState] = useState({ listening: false, speaking: false });
-  const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 11) setShowBriefing(true);
   }, []);
-
-  const toggleMinimize = async () => {
-    if (!isElectron) return;
-    if (minimized) {
-      await window.jarvisDesktop.expandFromOrb();
-      setMinimized(false);
-    } else {
-      await window.jarvisDesktop.minimizeToOrb();
-      setMinimized(true);
-    }
-  };
 
   const toggleMaximize = async () => {
     if (!isElectron) return;
@@ -41,17 +29,11 @@ export default function App() {
     }
   };
 
-  if (minimized) {
-    return (
-      <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', cursor: 'pointer' }}
-        onClick={toggleMinimize}>
-        <StarField />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-          <GlowOrb listening={orbState.listening} speaking={orbState.speaking} />
-        </div>
-      </div>
-    );
-  }
+  const hideJarvis = () => {
+    if (isElectron) {
+      window.jarvisDesktop.hideWindow();
+    }
+  };
 
   const btnStyle = {
     WebkitAppRegion: 'no-drag',
@@ -72,9 +54,11 @@ export default function App() {
         }}>
           <span style={{ fontSize: 11, color: '#475569', WebkitAppRegion: 'no-drag' }}>JARVIS</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={toggleMinimize} style={btnStyle} title="Minimize to orb">—</button>
             <button onClick={toggleMaximize} style={btnStyle} title={maximized ? 'Restore' : 'Maximize'}>
               {maximized ? '◇' : '◻'}
+            </button>
+            <button onClick={hideJarvis} style={{ ...btnStyle, color: '#ef4444' }} title="Hide (double-clap to bring back)">
+              x
             </button>
           </div>
         </div>

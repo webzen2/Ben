@@ -140,13 +140,15 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     } else {
       startWakeDetection((trigger) => {
         if (trigger === 'clap') {
-          // Double clap = Shoot to Thrill intro, then listen
+          // Double clap = show window + Shoot to Thrill intro, then listen
+          if (isElectron) window.jarvisDesktop.showWindow();
           playShootToThrill();
           setTimeout(() => {
             beginListening();
           }, 2200);
         } else {
-          // Hotword "Jarvis" = greet then listen
+          // Hotword "Jarvis" = show window, greet, then listen
+          if (isElectron) window.jarvisDesktop.showWindow();
           pauseWakeDetection();
           setSpeaking(true);
           speak('Hello Ben.', {

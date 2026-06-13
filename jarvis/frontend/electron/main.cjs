@@ -68,6 +68,11 @@ function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   mainWindow.setPosition(width - 440, height - 720);
 
+  // Hide instead of close — double-clap or tray brings it back
+  mainWindow.on('close', (e) => {
+    e.preventDefault();
+    mainWindow.hide();
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
@@ -168,6 +173,17 @@ ipcMain.handle('expand-from-orb', async () => {
   mainWindow?.setSize(420, 700);
   mainWindow?.setResizable(true);
   return { expanded: true };
+});
+
+ipcMain.handle('hide-window', async () => {
+  mainWindow?.hide();
+  return { hidden: true };
+});
+
+ipcMain.handle('show-window', async () => {
+  mainWindow?.show();
+  mainWindow?.focus();
+  return { shown: true };
 });
 
 // ── App lifecycle ─────────────────────────────────────────────

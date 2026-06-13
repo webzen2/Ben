@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
   setWindowSize: (w, h) => ipcRenderer.invoke('set-window-size', w, h),
   minimizeToOrb: () => ipcRenderer.invoke('minimize-to-orb'),
   expandFromOrb: () => ipcRenderer.invoke('expand-from-orb'),
+  hideWindow: () => ipcRenderer.invoke('hide-window'),
+  showWindow: () => ipcRenderer.invoke('show-window'),
   isElectron: true,
 });
