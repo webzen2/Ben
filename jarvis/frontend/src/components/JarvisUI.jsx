@@ -46,9 +46,18 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       const appName = command.replace(/^(open|launch|start|show me|go to)\s+/i, '').trim();
       try {
         const result = await window.jarvisDesktop.openApp(appName);
-        const msg = result.opened
-          ? `Opening ${result.target}`
-          : `Couldn't open ${appName}: ${result.error}`;
+        let msg;
+        if (result.opened) {
+          msg = `Opening ${result.target}`;
+        } else {
+          // Unknown app — search Google or open as URL
+          const looksLikeUrl = /^https?:\/\/|^[a-z0-9-]+\.[a-z]{2,}/i.test(appName);
+          const target = looksLikeUrl
+            ? (appName.startsWith('http') ? appName : `https://${appName}`)
+            : `https://www.google.com/search?q=${encodeURIComponent(appName)}`;
+          await window.jarvisDesktop.openUrl(target);
+          msg = looksLikeUrl ? `Opening ${target}` : `Searching Google for "${appName}"`;
+        }
         setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
         setResponse(msg);
         setSpeaking(true);
@@ -58,19 +67,24 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       } catch {}
     }
 
-    // Web fallback — browser agent for URL resolution
-    if (!isElectron && /open|show me|go to|navigate/i.test(command)) {
+    // Web fallback — browser agent for URL resolution, Google search if unknown
+    if (!isElectron && /^(open|show me|go to|navigate)\s+/i.test(command)) {
       try {
         const { data } = await axios.post(`${API}/browser/open`, { command });
-        if (data.url) {
-          window.open(data.url, '_blank');
-          const msg = `Opening ${data.url}`;
-          setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
-          setSpeaking(true);
-          speak(msg, { onEnd: () => setSpeaking(false) });
-          setLoading(false);
-          return;
+        let target = data.url;
+        if (!target) {
+          const query = command.replace(/^(open|show me|go to|navigate)\s+/i, '').trim();
+          target = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
         }
+        window.open(target, '_blank');
+        const msg = target.includes('google.com/search')
+          ? `Searching Google for "${command.replace(/^(open|show me|go to|navigate)\s+/i, '').trim()}"`
+          : `Opening ${target}`;
+        setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
+        setSpeaking(true);
+        speak(msg, { onEnd: () => setSpeaking(false) });
+        setLoading(false);
+        return;
       } catch {}
     }
 
@@ -108,7 +122,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       startWakeDetection((trigger) => {
         // Activated by hotword or clap — start listening
         setSpeaking(true);
-        speak('Yes, Ben?', {
+        speak('Hello Ben.', {
           onEnd: () => {
             setSpeaking(false);
             setListening(true);
