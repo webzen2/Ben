@@ -6,15 +6,6 @@ import { startWakeDetection, stopWakeDetection } from '../agents/wakeDetector.js
 const API = '/api/agents';
 const isElectron = !!window.jarvisDesktop;
 
-const QUICK_ACTIONS = [
-  { label: 'Pipeline', icon: '📊', agent: 'client', action: 'pipeline' },
-  { label: 'Notes', icon: '📝', agent: 'files', action: 'notes' },
-  { label: 'Intel', icon: '🔍', agent: 'research', action: 'intel' },
-  { label: 'Social', icon: '📱', agent: 'social', action: 'analytics' },
-  { label: 'Calendar', icon: '📅', agent: 'calendar', action: 'today' },
-  { label: 'Tasks', icon: '✅', agent: 'tasks', action: 'list' },
-];
-
 export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -24,6 +15,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [history, setHistory] = useState([]);
   const [inputText, setInputText] = useState('');
   const [wakeActive, setWakeActive] = useState(false);
+  const [conversing, setConversing] = useState(false);
   const historyRef = useRef(null);
   const handleCommandRef = useRef(null);
 
@@ -35,13 +27,39 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
   }, [history]);
 
+  // After speaking, auto-listen again for conversational flow
+  const speakAndRelisten = useCallback((text) => {
+    setSpeaking(true);
+    setConversing(true);
+    speak(text, {
+      onEnd: () => {
+        setSpeaking(false);
+        // Wait 500ms then re-activate mic
+        setTimeout(() => {
+          setListening(true);
+          startListening({
+            onResult: (result) => {
+              setTranscript(result);
+              setListening(false);
+              handleCommandRef.current?.(result);
+            },
+            onEnd: () => {
+              setListening(false);
+              setConversing(false);
+            },
+          });
+        }, 500);
+      },
+    });
+  }, []);
+
   const handleCommand = useCallback(async (command) => {
     if (!command.trim()) return;
 
     setLoading(true);
     setResponse('');
 
-    // Desktop app opener — intercept "open X" commands in Electron
+    // Desktop app opener
     if (isElectron && /^(open|launch|start|show me|go to)\s+/i.test(command)) {
       const appName = command.replace(/^(open|launch|start|show me|go to)\s+/i, '').trim();
       try {
@@ -50,7 +68,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         if (result.opened) {
           msg = `Opening ${result.target}`;
         } else {
-          // Unknown app — search Google or open as URL
           const looksLikeUrl = /^https?:\/\/|^[a-z0-9-]+\.[a-z]{2,}/i.test(appName);
           const target = looksLikeUrl
             ? (appName.startsWith('http') ? appName : `https://${appName}`)
@@ -60,14 +77,13 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         }
         setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
         setResponse(msg);
-        setSpeaking(true);
-        speak(msg, { onEnd: () => setSpeaking(false) });
+        speakAndRelisten(msg);
         setLoading(false);
         return;
       } catch {}
     }
 
-    // Web fallback — browser agent for URL resolution, Google search if unknown
+    // Web fallback
     if (!isElectron && /^(open|show me|go to|navigate)\s+/i.test(command)) {
       try {
         const { data } = await axios.post(`${API}/browser/open`, { command });
@@ -81,8 +97,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
           ? `Searching Google for "${command.replace(/^(open|show me|go to|navigate)\s+/i, '').trim()}"`
           : `Opening ${target}`;
         setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
-        setSpeaking(true);
-        speak(msg, { onEnd: () => setSpeaking(false) });
+        speakAndRelisten(msg);
         setLoading(false);
         return;
       } catch {}
@@ -97,8 +112,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       const reply = data.response || 'Done.';
       setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: reply }]);
       setResponse(reply);
-      setSpeaking(true);
-      speak(reply, { onEnd: () => setSpeaking(false) });
+      speakAndRelisten(reply);
 
       if (data.agent && data.agent !== 'general') {
         onAgentPanel?.({ agent: data.agent, data: data.data });
@@ -106,10 +120,10 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     } catch (err) {
       const errMsg = `Error: ${err.response?.data?.error || err.message}`;
       setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: errMsg }]);
-      speak('Something went wrong.');
+      speakAndRelisten('Something went wrong.');
     }
     setLoading(false);
-  }, [history, onAgentPanel]);
+  }, [history, onAgentPanel, speakAndRelisten]);
 
   handleCommandRef.current = handleCommand;
 
@@ -119,21 +133,26 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       stopWakeDetection();
       setWakeActive(false);
     } else {
-      startWakeDetection((trigger) => {
-        // Activated by hotword or clap — start listening
+      startWakeDetection(() => {
         setSpeaking(true);
         speak('Hello Ben.', {
           onEnd: () => {
             setSpeaking(false);
-            setListening(true);
-            startListening({
-              onResult: (text) => {
-                setTranscript(text);
-                setListening(false);
-                handleCommandRef.current?.(text);
-              },
-              onEnd: () => setListening(false),
-            });
+            setTimeout(() => {
+              setListening(true);
+              setConversing(true);
+              startListening({
+                onResult: (text) => {
+                  setTranscript(text);
+                  setListening(false);
+                  handleCommandRef.current?.(text);
+                },
+                onEnd: () => {
+                  setListening(false);
+                  setConversing(false);
+                },
+              });
+            }, 500);
           },
         });
       });
@@ -141,7 +160,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     }
   }, [wakeActive]);
 
-  // Auto-enable wake detection in Electron
   useEffect(() => {
     if (isElectron && !wakeActive) {
       toggleWake();
@@ -153,15 +171,20 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     if (listening) {
       stopListening();
       setListening(false);
+      setConversing(false);
     } else {
       setListening(true);
+      setConversing(true);
       startListening({
         onResult: (text) => {
           setTranscript(text);
           setListening(false);
           handleCommand(text);
         },
-        onEnd: () => setListening(false),
+        onEnd: () => {
+          setListening(false);
+          setConversing(false);
+        },
       });
     }
   };
@@ -178,7 +201,9 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
 
       {/* Status line */}
       <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8, letterSpacing: '0.05em', display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span>{listening ? '● LISTENING' : loading ? '◌ PROCESSING' : 'JARVIS · BCAUTOMATIONS OS'}</span>
+        <span>
+          {listening ? 'LISTENING' : speaking ? 'SPEAKING' : loading ? 'PROCESSING' : conversing ? 'CONVERSING' : 'JARVIS'}
+        </span>
         <button
           onClick={toggleWake}
           style={{
@@ -187,7 +212,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
             border: `1px solid ${wakeActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
             color: wakeActive ? '#86efac' : '#64748b', cursor: 'pointer',
           }}
-          title={wakeActive ? 'Wake detection ON — say "Jarvis" or double-clap' : 'Enable wake detection'}
         >
           {wakeActive ? 'WAKE ON' : 'WAKE OFF'}
         </button>
@@ -208,13 +232,13 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
           width: 64, height: 64, borderRadius: '50%',
           background: listening ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.05)',
           border: `2px solid ${listening ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
-          cursor: 'pointer', fontSize: 24, marginBottom: 20,
+          cursor: 'pointer', fontSize: 12, marginBottom: 20,
           transition: 'all 0.2s',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: listening ? '#3b82f6' : '#64748b', letterSpacing: '0.05em',
         }}
-        title="Click to speak"
       >
-        {listening ? '🔴' : '🎙️'}
+        {listening ? 'ON' : 'MIC'}
       </button>
 
       {/* Text input */}
@@ -236,39 +260,12 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         }}>Send</button>
       </form>
 
-      {/* Quick actions */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-        {QUICK_ACTIONS.map(({ label, icon, agent, action }) => (
-          <button
-            key={label}
-            onClick={() => handleCommand(`${label.toLowerCase()} ${action}`)}
-            style={{
-              padding: '6px 14px', borderRadius: 20,
-              background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(59,130,246,0.2)',
-              color: '#94a3b8', cursor: 'pointer', fontSize: 13, display: 'flex', gap: 5, alignItems: 'center',
-            }}
-          >
-            {icon} {label}
-          </button>
-        ))}
-        <button
-          onClick={onBriefing}
-          style={{
-            padding: '6px 14px', borderRadius: 20,
-            background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
-            color: '#86efac', cursor: 'pointer', fontSize: 13,
-          }}
-        >
-          ☀️ Briefing
-        </button>
-      </div>
-
       {/* Conversation history */}
       {history.length > 0 && (
         <div
           ref={historyRef}
           style={{
-            width: '100%', maxHeight: 220, overflowY: 'auto',
+            width: '100%', maxHeight: 280, overflowY: 'auto',
             background: 'rgba(15,23,42,0.6)', borderRadius: 12,
             border: '1px solid rgba(59,130,246,0.15)', padding: 12,
           }}

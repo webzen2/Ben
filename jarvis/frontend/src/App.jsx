@@ -12,6 +12,7 @@ export default function App() {
   const [showBriefing, setShowBriefing] = useState(false);
   const [orbState, setOrbState] = useState({ listening: false, speaking: false });
   const [minimized, setMinimized] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -29,6 +30,17 @@ export default function App() {
     }
   };
 
+  const toggleMaximize = async () => {
+    if (!isElectron) return;
+    if (maximized) {
+      await window.jarvisDesktop.setWindowSize(420, 700);
+      setMaximized(false);
+    } else {
+      await window.jarvisDesktop.setWindowSize(900, 800);
+      setMaximized(true);
+    }
+  };
+
   if (minimized) {
     return (
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', cursor: 'pointer' }}
@@ -41,11 +53,16 @@ export default function App() {
     );
   }
 
+  const btnStyle = {
+    WebkitAppRegion: 'no-drag',
+    background: 'none', border: 'none', color: '#475569',
+    cursor: 'pointer', fontSize: 13, padding: '0 4px',
+  };
+
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <StarField />
 
-      {/* Frameless window drag bar (Electron only) */}
       {isElectron && (
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: 32,
@@ -54,15 +71,12 @@ export default function App() {
           padding: '0 12px',
         }}>
           <span style={{ fontSize: 11, color: '#475569', WebkitAppRegion: 'no-drag' }}>JARVIS</span>
-          <button
-            onClick={toggleMinimize}
-            style={{
-              WebkitAppRegion: 'no-drag',
-              background: 'none', border: 'none', color: '#475569',
-              cursor: 'pointer', fontSize: 14,
-            }}
-            title="Minimize to orb"
-          >—</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={toggleMinimize} style={btnStyle} title="Minimize to orb">—</button>
+            <button onClick={toggleMaximize} style={btnStyle} title={maximized ? 'Restore' : 'Maximize'}>
+              {maximized ? '◇' : '◻'}
+            </button>
+          </div>
         </div>
       )}
 

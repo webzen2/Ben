@@ -34,7 +34,7 @@ export default function MorningBriefing({ onClose }) {
         boxShadow: '0 0 60px rgba(59,130,246,0.1)',
       }}>
         <div style={{ fontSize: 22, fontWeight: 300, color: '#e2e8f0', marginBottom: 20, letterSpacing: '-0.01em' }}>
-          ☀️ Morning Briefing
+          Morning Briefing
         </div>
 
         {loading ? (

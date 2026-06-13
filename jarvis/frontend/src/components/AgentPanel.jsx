@@ -5,7 +5,7 @@ const API = '/api/agents';
 
 const panelConfig = {
   client: {
-    title: '📊 Client Pipeline',
+    title: 'Client Pipeline',
     fetch: () => axios.get(`${API}/client/pipeline`),
     render: (d) => (
       <pre style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>
@@ -14,16 +14,16 @@ const panelConfig = {
     ),
   },
   files: {
-    title: '📝 Notes & Files',
+    title: 'Notes & Files',
     fetch: () => axios.get(`${API}/files/notes`),
-    render: (d, refetch) => (
+    render: (d) => (
       <div>
         <label style={{
           display: 'block', marginBottom: 16, padding: '12px 16px',
           border: '1px dashed rgba(59,130,246,0.4)', borderRadius: 8,
           color: '#64748b', fontSize: 13, cursor: 'pointer', textAlign: 'center',
         }}>
-          📎 Upload PDF / Text file
+          Upload PDF / Text file
           <input type="file" accept=".pdf,.txt" style={{ display: 'none' }}
             onChange={async (e) => {
               const file = e.target.files[0];
@@ -46,7 +46,7 @@ const panelConfig = {
     ),
   },
   research: {
-    title: '🔍 Competitor Intel',
+    title: 'Competitor Intel',
     fetch: () => axios.get(`${API}/research/competitor-intel`),
     render: (d) => (
       <div>
@@ -63,7 +63,7 @@ const panelConfig = {
     ),
   },
   social: {
-    title: '📱 Social Analytics',
+    title: 'Social Analytics',
     fetch: () => axios.get(`${API}/social/analytics`),
     render: (d) => (
       <pre style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'pre-wrap' }}>
@@ -72,7 +72,7 @@ const panelConfig = {
     ),
   },
   tasks: {
-    title: '✅ Tasks & Ideas',
+    title: 'Tasks & Ideas',
     fetch: () => axios.get(`${API}/tasks`),
     render: (d) => (
       <div>
@@ -93,7 +93,7 @@ const panelConfig = {
     ),
   },
   calendar: {
-    title: '📅 Today\'s Schedule',
+    title: 'Today\'s Schedule',
     fetch: () => axios.get(`${API}/calendar/today`),
     render: (d) => (
       <div>
@@ -136,7 +136,7 @@ export default function AgentPanel({ agent, data: initialData, onClose }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(59,130,246,0.15)' }}>
         <span style={{ fontSize: 15, fontWeight: 500, color: '#e2e8f0' }}>{config.title}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>x</button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
