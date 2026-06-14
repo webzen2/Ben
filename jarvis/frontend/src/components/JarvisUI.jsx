@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { speak, startListening, stopListening } from '../agents/voiceAgent.js';
+import { speak, startListening, stopListening, stopSpeaking } from '../agents/voiceAgent.js';
 import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
 
 const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 const isElectron = !!window.jarvisDesktop;
+const JARVIS_URL = window.location.origin;
 
 const SITES = {
   'my website': 'https://bcautomations.vercel.app',
@@ -70,6 +71,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const historyRef = useRef(null);
   const handleCommandRef = useRef(null);
   const isProcessingRef = useRef(false);
+  const speakingRef = useRef(false);
 
   useEffect(() => {
     onOrbState?.({ listening, speaking });
@@ -78,6 +80,15 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   useEffect(() => {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
   }, [history]);
+
+  const interruptSpeaking = useCallback(() => {
+    if (speakingRef.current) {
+      stopSpeaking();
+      setSpeaking(false);
+      speakingRef.current = false;
+      isProcessingRef.current = false;
+    }
+  }, []);
 
   const beginListening = useCallback(() => {
     if (isProcessingRef.current) return;
@@ -102,9 +113,11 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const speakAndRelisten = useCallback((text) => {
     pauseWakeDetection();
     setSpeaking(true);
+    speakingRef.current = true;
     speak(text, {
       onEnd: () => {
         setSpeaking(false);
+        speakingRef.current = false;
         isProcessingRef.current = false;
         setTimeout(() => {
           beginListening();
@@ -119,12 +132,92 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       return;
     }
 
+    const lc = command.toLowerCase().trim();
+
+    // "Stop" / "Jarvis stop" — silence and go back to listening
+    if (/^(jarvis\s+)?(stop|shut up|quiet|silence|enough|ok stop)$/i.test(lc)) {
+      interruptSpeaking();
+      setLoading(false);
+      setResponse('');
+      isProcessingRef.current = false;
+      setTimeout(() => beginListening(), 300);
+      return;
+    }
+
+    // "Go home" / "go back home" — focus the Jarvis tab
+    if (/^(jarvis\s+)?(go\s*(back\s*)?home|come back|go back)$/i.test(lc)) {
+      window.focus();
+      const msg = "I'm right here, Ben.";
+      setResponse(msg);
+      speakAndRelisten(msg);
+      setLoading(false);
+      return;
+    }
+
+    // Timer / Reminders — "remind me in 5 minutes to call John"
+    const timerMatch = lc.match(/(?:remind me|set.*(?:timer|alarm)|wake me)\s+(?:in\s+)?(\d+)\s*(second|minute|min|hour|sec|hr)s?\s*(?:to\s+)?(.+)?/i);
+    if (timerMatch) {
+      const amount = parseInt(timerMatch[1]);
+      const unit = timerMatch[2].toLowerCase();
+      const task = timerMatch[3] || 'timer done';
+      const ms = unit.startsWith('sec') ? amount * 1000
+        : unit.startsWith('min') ? amount * 60000
+        : amount * 3600000;
+      const label = `${amount} ${unit}${amount > 1 ? 's' : ''}`;
+      setTimeout(() => {
+        interruptSpeaking();
+        const reminder = task === 'timer done' ? `Ben, your ${label} timer is up.` : `Ben, reminder: ${task}`;
+        setResponse(reminder);
+        speakAndRelisten(reminder);
+      }, ms);
+      const msg = `Got it, I'll remind you in ${label}.`;
+      setResponse(msg);
+      speakAndRelisten(msg);
+      return;
+    }
+
+    // Quick math — "what's 15% of 3200", "calculate 500 + 200"
+    const mathMatch = lc.match(/(?:what(?:'s| is)\s+)?(\d+(?:\.\d+)?)\s*%\s*(?:of\s+)?\$?(\d+(?:[,.]?\d+)*)/);
+    if (mathMatch) {
+      const pct = parseFloat(mathMatch[1]);
+      const base = parseFloat(mathMatch[2].replace(/,/g, ''));
+      const result = (pct / 100 * base).toFixed(2);
+      const msg = `${pct}% of $${base.toLocaleString()} is $${parseFloat(result).toLocaleString()}`;
+      setResponse(msg);
+      speakAndRelisten(msg);
+      return;
+    }
+    const calcMatch = lc.match(/(?:calculate|what(?:'s| is)\s+)?([\d.]+)\s*([+\-*/x×])\s*([\d.]+)/);
+    if (calcMatch) {
+      const a = parseFloat(calcMatch[1]);
+      const op = calcMatch[2];
+      const b = parseFloat(calcMatch[3]);
+      let result;
+      if (op === '+') result = a + b;
+      else if (op === '-') result = a - b;
+      else if (op === '*' || op === 'x' || op === '×') result = a * b;
+      else if (op === '/') result = b !== 0 ? a / b : 'undefined';
+      const msg = `That's ${typeof result === 'number' ? result.toLocaleString() : result}`;
+      setResponse(msg);
+      speakAndRelisten(msg);
+      return;
+    }
+
     setLoading(true);
     setResponse('');
 
     // Open websites in new tabs — resolved locally, no backend needed
     if (/^(open|show me|go to|navigate|launch|start)\s+/i.test(command)) {
       const query = command.replace(/^(open|show me|go to|navigate|launch|start)\s+/i, '').trim();
+      // "open home" or "open jarvis" goes back to Jarvis
+      if (/^(home|jarvis)$/i.test(query)) {
+        window.focus();
+        const msg = "I'm right here.";
+        setResponse(msg);
+        speakAndRelisten(msg);
+        setLoading(false);
+        return;
+      }
       const target = resolveUrl(query);
       window.open(target, '_blank');
       const msg = target.includes('google.com/search')
@@ -162,7 +255,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       speakAndRelisten(msg);
     }
     setLoading(false);
-  }, [history, onAgentPanel, speakAndRelisten]);
+  }, [history, onAgentPanel, speakAndRelisten, interruptSpeaking, beginListening]);
 
   handleCommandRef.current = handleCommand;
 
@@ -171,11 +264,14 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     if (wakeActive) return;
     startWakeDetection(() => {
       if (isElectron) window.jarvisDesktop.showWindow();
+      interruptSpeaking();
       pauseWakeDetection();
       setSpeaking(true);
+      speakingRef.current = true;
       speak('Hello Ben.', {
         onEnd: () => {
           setSpeaking(false);
+          speakingRef.current = false;
           setTimeout(() => {
             beginListening();
           }, 300);
@@ -184,9 +280,15 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     });
     setWakeActive(true);
     return () => stopWakeDetection();
-  }, [beginListening]);
+  }, [beginListening, interruptSpeaking]);
 
   const toggleListen = () => {
+    if (speaking) {
+      interruptSpeaking();
+      isProcessingRef.current = false;
+      setTimeout(() => beginListening(), 200);
+      return;
+    }
     if (listening) {
       stopListening();
       setListening(false);
@@ -199,6 +301,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const submitText = (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
+    interruptSpeaking();
     isProcessingRef.current = true;
     handleCommand(inputText);
     setInputText('');
@@ -231,15 +334,15 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         onClick={toggleListen}
         style={{
           width: 64, height: 64, borderRadius: '50%',
-          background: listening ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.05)',
-          border: `2px solid ${listening ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
+          background: listening ? 'rgba(59,130,246,0.25)' : speaking ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)',
+          border: `2px solid ${listening ? '#3b82f6' : speaking ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
           cursor: 'pointer', fontSize: 12, marginBottom: 20,
           transition: 'all 0.2s',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: listening ? '#3b82f6' : '#64748b', letterSpacing: '0.05em',
+          color: listening ? '#3b82f6' : speaking ? '#ef4444' : '#64748b', letterSpacing: '0.05em',
         }}
       >
-        {listening ? 'ON' : 'MIC'}
+        {listening ? 'ON' : speaking ? 'STOP' : 'MIC'}
       </button>
 
       <form onSubmit={submitText} style={{ display: 'flex', width: '100%', gap: 8, marginBottom: 20 }}>

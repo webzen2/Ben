@@ -59,6 +59,12 @@ function getPreferredVoice() {
   return english || null;
 }
 
+export function stopSpeaking() {
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+}
+
 export function speak(text, { onStart, onEnd } = {}) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
