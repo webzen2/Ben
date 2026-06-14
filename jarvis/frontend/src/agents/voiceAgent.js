@@ -32,9 +32,31 @@ export function stopListening() {
   recognition = null;
 }
 
+let cachedVoice = null;
+
 function getPreferredVoice() {
+  if (cachedVoice) return cachedVoice;
   const voices = window.speechSynthesis.getVoices();
-  return voices.find(v => /Google UK English Male|Daniel|Alex/i.test(v.name)) || null;
+  const preferred = [
+    /Google UK English Male/i,
+    /Daniel/i,
+    /Aaron/i,
+    /James/i,
+    /Arthur/i,
+    /Google US English/i,
+    /Samantha/i,
+    /Alex/i,
+  ];
+  for (const pattern of preferred) {
+    const match = voices.find(v => pattern.test(v.name));
+    if (match) {
+      cachedVoice = match;
+      return match;
+    }
+  }
+  const english = voices.find(v => v.lang.startsWith('en'));
+  if (english) cachedVoice = english;
+  return english || null;
 }
 
 export function speak(text, { onStart, onEnd } = {}) {
@@ -42,8 +64,8 @@ export function speak(text, { onStart, onEnd } = {}) {
   window.speechSynthesis.cancel();
 
   const utt = new SpeechSynthesisUtterance(text);
-  utt.rate = 1.0;
-  utt.pitch = 0.9;
+  utt.rate = 1.05;
+  utt.pitch = 1.0;
   utt.volume = 1;
 
   utt.onstart = () => onStart?.();
@@ -57,7 +79,6 @@ export function speak(text, { onStart, onEnd } = {}) {
     onStart?.();
   };
 
-  // Voices may not be loaded on first call
   if (window.speechSynthesis.getVoices().length > 0) {
     doSpeak();
   } else {

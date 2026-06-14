@@ -80,7 +80,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
           const msg = data.action === 'search'
             ? `Searching for "${command.replace(/^(open|show me|go to|navigate|launch|start)\s+/i, '').trim()}"`
             : `Opening ${target}`;
-          setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
+          setHistory(h => [...h, { role: 'jarvis', text: msg }]);
           setResponse(msg);
           speakAndRelisten(msg);
           setLoading(false);
@@ -96,7 +96,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       });
 
       const reply = data.response || 'Done.';
-      setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: reply }]);
+      setHistory(h => [...h, { role: 'jarvis', text: reply }]);
       setResponse(reply);
       speakAndRelisten(reply);
 
@@ -109,7 +109,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       }
     } catch (err) {
       const msg = 'Backend is offline. Start the Jarvis server to use AI commands.';
-      setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
+      setHistory(h => [...h, { role: 'jarvis', text: msg }]);
       setResponse(msg);
       speakAndRelisten(msg);
     }
@@ -173,10 +173,9 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         </span>
       </div>
 
-      {(transcript || response) && (
-        <div style={{ fontSize: 15, color: '#94a3b8', marginBottom: 16, textAlign: 'center', maxWidth: 500 }}>
-          {transcript && <span style={{ color: '#e2e8f0' }}>"{transcript}"</span>}
-          {response && <p style={{ marginTop: 6, color: '#7dd3fc' }}>{response}</p>}
+      {response && (
+        <div style={{ fontSize: 15, color: '#7dd3fc', marginBottom: 16, textAlign: 'center', maxWidth: 500 }}>
+          {response}
         </div>
       )}
 
@@ -225,10 +224,10 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
           {history.map((m, i) => (
             <div key={i} style={{
               fontSize: 13, marginBottom: 6,
-              color: m.role === 'user' ? '#94a3b8' : '#7dd3fc',
-              textAlign: m.role === 'user' ? 'right' : 'left',
+              color: '#7dd3fc',
+              textAlign: 'left',
             }}>
-              <span style={{ opacity: 0.5 }}>{m.role === 'user' ? 'Ben' : 'Jarvis'}: </span>
+              <span style={{ opacity: 0.5 }}>Jarvis: </span>
               {m.text}
             </div>
           ))}
