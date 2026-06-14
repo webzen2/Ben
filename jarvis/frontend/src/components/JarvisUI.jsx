@@ -6,6 +6,58 @@ import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDe
 const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 const isElectron = !!window.jarvisDesktop;
 
+const SITES = {
+  'my website': 'https://bcautomations.vercel.app',
+  'bcautomations': 'https://bcautomations.vercel.app',
+  'bc automations': 'https://bcautomations.vercel.app',
+  'ghl': 'https://app.gohighlevel.com',
+  'gohighlevel': 'https://app.gohighlevel.com',
+  'go high level': 'https://app.gohighlevel.com',
+  'supabase': 'https://app.supabase.com',
+  'vercel': 'https://vercel.com/dashboard',
+  'make': 'https://make.com',
+  'instagram': 'https://instagram.com',
+  'facebook': 'https://facebook.com',
+  'youtube': 'https://youtube.com',
+  'twitter': 'https://x.com',
+  'x': 'https://x.com',
+  'linkedin': 'https://linkedin.com',
+  'github': 'https://github.com',
+  'gmail': 'https://mail.google.com',
+  'email': 'https://mail.google.com',
+  'google drive': 'https://drive.google.com',
+  'drive': 'https://drive.google.com',
+  'google docs': 'https://docs.google.com',
+  'google sheets': 'https://sheets.google.com',
+  'google calendar': 'https://calendar.google.com',
+  'calendar': 'https://calendar.google.com',
+  'chatgpt': 'https://chat.openai.com',
+  'claude': 'https://claude.ai',
+  'canva': 'https://canva.com',
+  'stripe': 'https://dashboard.stripe.com',
+  'railway': 'https://railway.app/dashboard',
+  'slack': 'https://slack.com',
+  'notion': 'https://notion.so',
+  'tiktok': 'https://tiktok.com',
+  'amazon': 'https://amazon.com',
+  'netflix': 'https://netflix.com',
+  'spotify': 'https://open.spotify.com',
+  'reddit': 'https://reddit.com',
+  'google': 'https://google.com',
+};
+
+function resolveUrl(query) {
+  const lc = query.toLowerCase().trim();
+  for (const [key, url] of Object.entries(SITES)) {
+    if (lc.includes(key)) return url;
+  }
+  const urlMatch = lc.match(/https?:\/\/[^\s]+/);
+  if (urlMatch) return urlMatch[0];
+  const domainMatch = lc.match(/([a-z0-9-]+\.[a-z]{2,})/);
+  if (domainMatch) return `https://${domainMatch[1]}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(lc)}`;
+}
+
 export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -70,23 +122,19 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     setLoading(true);
     setResponse('');
 
-    // Open websites in new tabs
+    // Open websites in new tabs — resolved locally, no backend needed
     if (/^(open|show me|go to|navigate|launch|start)\s+/i.test(command)) {
-      try {
-        const { data } = await axios.post(`${API}/browser/open`, { command });
-        const target = data.url;
-        if (target) {
-          window.open(target, '_blank');
-          const msg = data.action === 'search'
-            ? `Searching for "${command.replace(/^(open|show me|go to|navigate|launch|start)\s+/i, '').trim()}"`
-            : `Opening ${target}`;
-          setHistory(h => [...h, { role: 'jarvis', text: msg }]);
-          setResponse(msg);
-          speakAndRelisten(msg);
-          setLoading(false);
-          return;
-        }
-      } catch {}
+      const query = command.replace(/^(open|show me|go to|navigate|launch|start)\s+/i, '').trim();
+      const target = resolveUrl(query);
+      window.open(target, '_blank');
+      const msg = target.includes('google.com/search')
+        ? `Searching for "${query}"`
+        : `Opening ${query}`;
+      setHistory(h => [...h, { role: 'jarvis', text: msg }]);
+      setResponse(msg);
+      speakAndRelisten(msg);
+      setLoading(false);
+      return;
     }
 
     try {
