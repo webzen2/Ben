@@ -20,10 +20,11 @@ Keep responses brief — they are spoken aloud.`;
 
 const AGENT_KEYWORDS = {
   memory: ['remember', 'memorize', 'learn that', 'add.*memory', 'forget', 'what do you know', 'what have i taught'],
+  email: ['email', 'inbox', 'mail', 'unread', 'send.*email', 'check.*email', 'any.*emails', 'new.*emails'],
   client: ['client', 'pipeline', 'onboard', 'contract', 'ghl', 'lead', 'follow.?up', 'dm'],
   files: ['note', 'pdf', 'upload', 'document', 'summarize', 'save', 'find.*note', 'notes about'],
-  research: ['search', 'research', 'competitor', 'look up', 'find out', 'intel', 'news'],
-  social: ['post', 'instagram', 'facebook', 'schedule.*post', 'analytics', 'engagement', 'reply'],
+  research: ['search', 'research', 'competitor', 'look up', 'find out', 'intel', 'news', 'what.*up to'],
+  social: ['post', 'instagram', 'facebook', 'schedule.*post', 'analytics', 'engagement', 'reply', 'draft.*post', 'create.*post', 'write.*post'],
   calendar: ['calendar', 'schedule', 'event', 'meeting', 'appointment', 'today', 'tomorrow'],
   browser: ['open', 'show me', 'go to', 'navigate', 'website', 'url'],
   tasks: ['task', 'idea', 'remind me', 'todo', 'to.?do', 'add.*task', 'save.*idea'],
@@ -119,7 +120,7 @@ export const brainAgent = {
     return { agent: 'memory', action: 'save', response: `Got it, I'll remember that.` };
   },
 
-  async composeBriefing({ schedule, intel, pipeline }) {
+  async composeBriefing({ schedule, intel, pipeline, emails }) {
     let memorySummary = '';
     try {
       memorySummary = await memoryAgent.getMemorySummary();
@@ -129,6 +130,7 @@ export const brainAgent = {
 - Today's schedule: ${JSON.stringify(schedule)}
 - Top competitor intel: ${JSON.stringify(intel?.slice?.(0, 3))}
 - Pipeline snapshot: ${JSON.stringify(pipeline)}
+- Unread emails: ${JSON.stringify(emails)}
 ${memorySummary ? `\nBen's saved context:\n${memorySummary}` : ''}
 Keep it under 120 words, conversational, start with "Good morning, Ben."`;
 

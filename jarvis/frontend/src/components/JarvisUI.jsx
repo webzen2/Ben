@@ -154,6 +154,55 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       return;
     }
 
+    // Timer / Reminders — "remind me in 5 minutes to call John"
+    const timerMatch = lc.match(/(?:remind me|set.*(?:timer|alarm)|wake me)\s+(?:in\s+)?(\d+)\s*(second|minute|min|hour|sec|hr)s?\s*(?:to\s+)?(.+)?/i);
+    if (timerMatch) {
+      const amount = parseInt(timerMatch[1]);
+      const unit = timerMatch[2].toLowerCase();
+      const task = timerMatch[3] || 'timer done';
+      const ms = unit.startsWith('sec') ? amount * 1000
+        : unit.startsWith('min') ? amount * 60000
+        : amount * 3600000;
+      const label = `${amount} ${unit}${amount > 1 ? 's' : ''}`;
+      setTimeout(() => {
+        interruptSpeaking();
+        const reminder = task === 'timer done' ? `Ben, your ${label} timer is up.` : `Ben, reminder: ${task}`;
+        setResponse(reminder);
+        speakAndRelisten(reminder);
+      }, ms);
+      const msg = `Got it, I'll remind you in ${label}.`;
+      setResponse(msg);
+      speakAndRelisten(msg);
+      return;
+    }
+
+    // Quick math — "what's 15% of 3200", "calculate 500 + 200"
+    const mathMatch = lc.match(/(?:what(?:'s| is)\s+)?(\d+(?:\.\d+)?)\s*%\s*(?:of\s+)?\$?(\d+(?:[,.]?\d+)*)/);
+    if (mathMatch) {
+      const pct = parseFloat(mathMatch[1]);
+      const base = parseFloat(mathMatch[2].replace(/,/g, ''));
+      const result = (pct / 100 * base).toFixed(2);
+      const msg = `${pct}% of $${base.toLocaleString()} is $${parseFloat(result).toLocaleString()}`;
+      setResponse(msg);
+      speakAndRelisten(msg);
+      return;
+    }
+    const calcMatch = lc.match(/(?:calculate|what(?:'s| is)\s+)?([\d.]+)\s*([+\-*/x×])\s*([\d.]+)/);
+    if (calcMatch) {
+      const a = parseFloat(calcMatch[1]);
+      const op = calcMatch[2];
+      const b = parseFloat(calcMatch[3]);
+      let result;
+      if (op === '+') result = a + b;
+      else if (op === '-') result = a - b;
+      else if (op === '*' || op === 'x' || op === '×') result = a * b;
+      else if (op === '/') result = b !== 0 ? a / b : 'undefined';
+      const msg = `That's ${typeof result === 'number' ? result.toLocaleString() : result}`;
+      setResponse(msg);
+      speakAndRelisten(msg);
+      return;
+    }
+
     setLoading(true);
     setResponse('');
 

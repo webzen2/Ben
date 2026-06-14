@@ -10,6 +10,7 @@ import { browserAgent } from '../agents/browserAgent.js';
 import { brainAgent } from '../agents/brainAgent.js';
 import { taskAgent } from '../agents/taskAgent.js';
 import { memoryAgent } from '../agents/memoryAgent.js';
+import { emailAgent } from '../agents/emailAgent.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -91,6 +92,29 @@ router.patch('/tasks/:id/close', async (req, res) => {
   res.json(await taskAgent.closeTask(req.params.id));
 });
 
+// ── Email Agent ───────────────────────────────────────────────
+router.get('/email/inbox', async (req, res) => {
+  try {
+    res.json(await emailAgent.checkInbox({ query: req.query.q, maxResults: req.query.limit || 5 }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.post('/email/search', async (req, res) => {
+  try {
+    res.json(await emailAgent.searchEmails(req.body.query));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.post('/email/send', async (req, res) => {
+  try {
+    res.json(await emailAgent.sendEmail(req.body));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Memory Agent ──────────────────────────────────────────────
 router.get('/memory', async (req, res) => {
   res.json(await memoryAgent.getMemories(req.query.category));
@@ -110,16 +134,18 @@ router.post('/browser/open', async (req, res) => {
 // ── Morning Briefing ──────────────────────────────────────────
 router.get('/briefing', async (_, res) => {
   try {
-    const [schedule, intel, pipeline] = await Promise.allSettled([
+    const [schedule, intel, pipeline, emails] = await Promise.allSettled([
       calendarAgent.getTodaySchedule(),
       researchAgent.getCompetitorIntel(),
       clientAgent.getPipeline(),
+      emailAgent.checkInbox({ maxResults: 5 }).catch(() => ({ count: 0 })),
     ]);
 
     const briefing = await brainAgent.composeBriefing({
       schedule: schedule.value,
       intel: intel.value,
       pipeline: pipeline.value,
+      emails: emails.value,
     });
 
     res.json(briefing);
