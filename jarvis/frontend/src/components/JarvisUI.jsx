@@ -17,6 +17,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [wakeActive, setWakeActive] = useState(false);
   const historyRef = useRef(null);
   const handleCommandRef = useRef(null);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     onOrbState?.({ listening, speaking });
@@ -26,39 +27,42 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
   }, [history]);
 
-  // Start listening for a voice command — pauses wake detection first
   const beginListening = useCallback(() => {
+    if (isProcessingRef.current) return;
     pauseWakeDetection();
     setListening(true);
     startListening({
       onResult: (text) => {
         setTranscript(text);
         setListening(false);
+        isProcessingRef.current = true;
         handleCommandRef.current?.(text);
       },
       onEnd: () => {
         setListening(false);
-        // Resume always-on wake detection
         resumeWakeDetection();
       },
     });
   }, []);
 
-  // Speak then auto-listen again for back-and-forth
   const speakAndRelisten = useCallback((text) => {
     setSpeaking(true);
     speak(text, {
       onEnd: () => {
         setSpeaking(false);
+        isProcessingRef.current = false;
         setTimeout(() => {
           beginListening();
-        }, 500);
+        }, 400);
       },
     });
   }, [beginListening]);
 
   const handleCommand = useCallback(async (command) => {
-    if (!command.trim()) return;
+    if (!command.trim()) {
+      isProcessingRef.current = false;
+      return;
+    }
 
     setLoading(true);
     setResponse('');
@@ -101,7 +105,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         onAgentPanel?.({ agent: data.agent, data: data.data });
       }
     } catch (err) {
-      // Backend not reachable — let the user know and keep listening
       const msg = 'Backend is offline. Start the Jarvis server to use AI commands.';
       setHistory(h => [...h, { role: 'user', text: command }, { role: 'jarvis', text: msg }]);
       setResponse(msg);
@@ -112,36 +115,25 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
 
   handleCommandRef.current = handleCommand;
 
-  // Wake detection setup
-  const toggleWake = useCallback(() => {
-    if (wakeActive) {
-      stopWakeDetection();
-      setWakeActive(false);
-    } else {
-      startWakeDetection(() => {
-        if (isElectron) window.jarvisDesktop.showWindow();
-        pauseWakeDetection();
-        setSpeaking(true);
-        speak('Hello Ben.', {
-          onEnd: () => {
-            setSpeaking(false);
-            setTimeout(() => {
-              beginListening();
-            }, 300);
-          },
-        });
-      });
-      setWakeActive(true);
-    }
-  }, [wakeActive, beginListening]);
-
-  // Auto-enable wake detection
+  // Wake detection — "Jarvis" hotword triggers greeting then listening
   useEffect(() => {
-    if (!wakeActive) {
-      toggleWake();
-    }
-    return () => { if (wakeActive) stopWakeDetection(); };
-  }, []);
+    if (wakeActive) return;
+    startWakeDetection(() => {
+      if (isElectron) window.jarvisDesktop.showWindow();
+      pauseWakeDetection();
+      setSpeaking(true);
+      speak('Hello Ben.', {
+        onEnd: () => {
+          setSpeaking(false);
+          setTimeout(() => {
+            beginListening();
+          }, 300);
+        },
+      });
+    });
+    setWakeActive(true);
+    return () => stopWakeDetection();
+  }, [beginListening]);
 
   const toggleListen = () => {
     if (listening) {
@@ -156,6 +148,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const submitText = (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
+    isProcessingRef.current = true;
     handleCommand(inputText);
     setInputText('');
   };
@@ -163,22 +156,20 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 680, padding: '0 20px' }}>
 
-      {/* Status line */}
       <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8, letterSpacing: '0.05em', display: 'flex', gap: 12, alignItems: 'center' }}>
         <span>
           {listening ? 'LISTENING' : speaking ? 'SPEAKING' : loading ? 'PROCESSING' : 'JARVIS'}
         </span>
         <span style={{
           fontSize: 10, padding: '2px 8px', borderRadius: 10,
-          background: wakeActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
-          border: `1px solid ${wakeActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-          color: wakeActive ? '#86efac' : '#64748b',
+          background: 'rgba(34,197,94,0.15)',
+          border: '1px solid rgba(34,197,94,0.4)',
+          color: '#86efac',
         }}>
-          {wakeActive ? 'ALWAYS ON' : 'OFF'}
+          ALWAYS ON
         </span>
       </div>
 
-      {/* Transcript / last response */}
       {(transcript || response) && (
         <div style={{ fontSize: 15, color: '#94a3b8', marginBottom: 16, textAlign: 'center', maxWidth: 500 }}>
           {transcript && <span style={{ color: '#e2e8f0' }}>"{transcript}"</span>}
@@ -186,7 +177,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         </div>
       )}
 
-      {/* Voice button */}
       <button
         onClick={toggleListen}
         style={{
@@ -202,7 +192,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         {listening ? 'ON' : 'MIC'}
       </button>
 
-      {/* Text input */}
       <form onSubmit={submitText} style={{ display: 'flex', width: '100%', gap: 8, marginBottom: 20 }}>
         <input
           value={inputText}
@@ -221,7 +210,6 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         }}>Send</button>
       </form>
 
-      {/* Conversation history */}
       {history.length > 0 && (
         <div
           ref={historyRef}

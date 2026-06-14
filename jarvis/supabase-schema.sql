@@ -30,8 +30,16 @@ create table if not exists jarvis_tasks (
   created_at timestamptz default now()
 );
 
+create table if not exists jarvis_memories (
+  id uuid default gen_random_uuid() primary key,
+  category text default 'general',
+  content text not null,
+  created_at timestamptz default now()
+);
+
 -- Enable RLS (restrict to service key only — no anon access)
 alter table jarvis_files enable row level security;
 alter table jarvis_notes enable row level security;
 alter table jarvis_intel enable row level security;
 alter table jarvis_tasks enable row level security;
+alter table jarvis_memories enable row level security;
