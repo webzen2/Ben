@@ -123,7 +123,7 @@ export default function AgentPanel({ agent, data: initialData, onClose }) {
     if (initialData) return;
     config.fetch()
       .then(r => setData(r.data))
-      .catch(e => setError(e.message))
+      .catch(() => onClose())
       .finally(() => setLoading(false));
   }, [agent]);
 
