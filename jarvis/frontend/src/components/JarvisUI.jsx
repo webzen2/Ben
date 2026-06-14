@@ -40,12 +40,15 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       },
       onEnd: () => {
         setListening(false);
-        resumeWakeDetection();
+        if (!isProcessingRef.current) {
+          resumeWakeDetection();
+        }
       },
     });
   }, []);
 
   const speakAndRelisten = useCallback((text) => {
+    pauseWakeDetection();
     setSpeaking(true);
     speak(text, {
       onEnd: () => {
