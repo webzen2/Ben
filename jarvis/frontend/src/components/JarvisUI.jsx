@@ -3,7 +3,7 @@ import axios from 'axios';
 import { speak, startListening, stopListening } from '../agents/voiceAgent.js';
 import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
 
-const API = import.meta.env.VITE_API_URL || '/api/agents';
+const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 const isElectron = !!window.jarvisDesktop;
 
 export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {

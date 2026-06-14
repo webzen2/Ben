@@ -7,7 +7,7 @@ export default function MorningBriefing({ onClose }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('/api/agents/briefing')
+    axios.get(`${import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents'}/briefing`)
       .then(r => {
         const text = r.data.briefing || 'Good morning, Ben. Have a great day.';
         setBriefing(text);

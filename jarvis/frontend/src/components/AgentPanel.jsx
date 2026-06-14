@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = '/api/agents';
+const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 
 const panelConfig = {
   client: {
