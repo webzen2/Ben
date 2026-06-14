@@ -9,6 +9,7 @@ import { calendarAgent } from '../agents/calendarAgent.js';
 import { browserAgent } from '../agents/browserAgent.js';
 import { brainAgent } from '../agents/brainAgent.js';
 import { taskAgent } from '../agents/taskAgent.js';
+import { memoryAgent } from '../agents/memoryAgent.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -88,6 +89,17 @@ router.post('/tasks', async (req, res) => {
 });
 router.patch('/tasks/:id/close', async (req, res) => {
   res.json(await taskAgent.closeTask(req.params.id));
+});
+
+// ── Memory Agent ──────────────────────────────────────────────
+router.get('/memory', async (req, res) => {
+  res.json(await memoryAgent.getMemories(req.query.category));
+});
+router.post('/memory', async (req, res) => {
+  res.json(await memoryAgent.addMemory(req.body));
+});
+router.delete('/memory/:id', async (req, res) => {
+  res.json(await memoryAgent.deleteMemory(req.params.id));
 });
 
 // ── Browser Agent ─────────────────────────────────────────────
