@@ -6,6 +6,7 @@ import multer from 'multer';
 import { agentRouter } from './routes/agentRouter.js';
 import { authRouter } from './routes/auth.js';
 import { startScheduledJobs } from './scheduler.js';
+import { requireAuth } from './middleware/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,7 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({ windowMs: 60_000, max: 60 });
 app.use('/api', limiter);
 
-app.use('/api/agents', agentRouter);
+app.use('/api/agents', requireAuth, agentRouter);
 app.use('/auth', authRouter);
 
 app.get('/health', (_, res) => res.json({ status: 'ok', ts: Date.now() }));

@@ -4,8 +4,10 @@ import { speak, startListening, stopListening, stopSpeaking } from '../agents/vo
 import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
 
 const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
+const API_TOKEN = import.meta.env.VITE_JARVIS_TOKEN || '';
 const isElectron = !!window.jarvisDesktop;
 const JARVIS_URL = window.location.origin;
+const apiHeaders = API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {};
 
 const SITES = {
   'my website': 'https://bcautomations.vercel.app',
@@ -234,11 +236,18 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       const { data } = await axios.post(`${API}/dispatch`, {
         command,
         context: history.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
-      });
+      }, { headers: apiHeaders });
 
       const reply = data.response || 'Done.';
       setHistory(h => [...h, { role: 'jarvis', text: reply }]);
       setResponse(reply);
+
+      if (data.action === 'confirm' && data.pendingPlan) {
+        speakAndRelisten(reply);
+        setLoading(false);
+        return;
+      }
+
       speakAndRelisten(reply);
 
       if (data.url) {
