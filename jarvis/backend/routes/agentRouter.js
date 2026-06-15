@@ -100,6 +100,17 @@ router.post('/email/send', asyncHandler(async (req, res) => {
 }));
 
 // ── Memory Agent ──────────────────────────────────────────────
+router.get('/memory/grouped', asyncHandler(async (_, res) => {
+  const memories = await memoryAgent.getMemories();
+  const grouped = {};
+  (memories || []).forEach(m => {
+    const cat = m.category || 'general';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(m);
+  });
+  res.json(grouped);
+}));
+
 router.get('/memory', asyncHandler(async (req, res) => {
   res.json(await memoryAgent.getMemories(req.query.category));
 }));

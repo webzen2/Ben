@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import AgentResultModal from './AgentResultModal.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 const API_TOKEN = import.meta.env.VITE_JARVIS_TOKEN || '';
@@ -27,6 +28,7 @@ export default function AgentsPage() {
   });
   const [commandInput, setCommandInput] = useState('');
   const [commandLog, setCommandLog] = useState([]);
+  const [modalAgent, setModalAgent] = useState(null);
   const canvasRef = useRef(null);
 
   // Draw orchestrator connections
@@ -259,6 +261,17 @@ export default function AgentsPage() {
                 </div>
               )}
 
+              {/* View Report Button */}
+              {state.lastResult?.data && (
+                <button
+                  className="agent-run-btn"
+                  style={{ borderColor: `${agent.color}55`, color: agent.color, marginTop: -4 }}
+                  onClick={() => setModalAgent(agent.id)}
+                >
+                  VIEW REPORT
+                </button>
+              )}
+
               {/* Run Button */}
               {agent.id !== 'jarvis' && (
                 <button
@@ -277,6 +290,15 @@ export default function AgentsPage() {
           );
         })}
       </div>
+
+      {/* Agent Result Modal */}
+      {modalAgent && agentStates[modalAgent]?.lastResult && (
+        <AgentResultModal
+          agent={AGENTS.find(a => a.id === modalAgent)}
+          result={agentStates[modalAgent].lastResult}
+          onClose={() => setModalAgent(null)}
+        />
+      )}
     </div>
   );
 }

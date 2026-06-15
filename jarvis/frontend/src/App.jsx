@@ -6,6 +6,7 @@ import AgentPanel from './components/AgentPanel.jsx';
 import MorningBriefing from './components/MorningBriefing.jsx';
 import AgentsPage from './components/AgentsPage.jsx';
 import DevOpsPage from './components/DevOpsPage.jsx';
+import TrainingPage from './components/TrainingPage.jsx';
 
 const isElectron = !!window.jarvisDesktop;
 
@@ -38,6 +39,7 @@ function formatDate(d) {
 const NAV_TABS = [
   { id: 'jarvis', label: 'JARVIS' },
   { id: 'agents', label: 'AGENTS' },
+  { id: 'training', label: 'TRAINING' },
   { id: 'devops', label: 'DEV OPS' },
 ];
 
@@ -190,6 +192,9 @@ export default function App() {
 
         {/* Agents Page */}
         {currentPage === 'agents' && <AgentsPage />}
+
+        {/* Training Page */}
+        {currentPage === 'training' && <TrainingPage />}
 
         {/* Dev Ops Page */}
         {currentPage === 'devops' && <DevOpsPage />}
