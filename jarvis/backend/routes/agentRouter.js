@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { logActivity, getActivities, getErrors } from '../middleware/activityLogger.js';
 
 import { clientAgent } from '../agents/clientAgent.js';
 import { filesAgent } from '../agents/filesAgent.js';
@@ -131,6 +132,75 @@ router.get('/briefing', asyncHandler(async (_, res) => {
   });
 
   res.json(briefing);
+}));
+
+// ── System Status & Activity ─────────────────────────────────
+router.get('/status', asyncHandler(async (_, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    uptime: process.uptime(),
+    memoryMB: Math.round(mem.rss / 1024 / 1024),
+    agentCount: 6,
+    timestamp: Date.now(),
+    integrations: {
+      gmail: !!process.env.GOOGLE_REFRESH_TOKEN,
+      ghl: !!process.env.GHL_API_KEY,
+      instagram: !!process.env.INSTAGRAM_ACCESS_TOKEN,
+      facebook: !!process.env.FACEBOOK_ACCESS_TOKEN,
+      brave: !!(process.env.BRAVE_API_KEY || process.env.SERPER_API_KEY),
+    },
+  });
+}));
+
+router.get('/activity', asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json({ activities: getActivities(limit), errors: getErrors(limit) });
+}));
+
+const AGENT_RUN_MAP = {
+  nova: async () => {
+    const data = await clientAgent.getPipeline();
+    return { message: `Pipeline loaded: ${data?.length || 0} contacts` };
+  },
+  echo: async () => {
+    const data = await socialAgent.getAnalytics();
+    return { message: 'Social analytics refreshed' };
+  },
+  radar: async () => {
+    const data = await researchAgent.getCompetitorIntel();
+    return { message: `Intel pulled: ${data?.length || 0} results` };
+  },
+  vault: async () => {
+    const data = await memoryAgent.getMemories();
+    return { message: `Memory loaded: ${data?.length || 0} entries` };
+  },
+  pulse: async () => {
+    const data = await calendarAgent.getTodaySchedule();
+    return { message: `Schedule loaded: ${data?.length || 0} events` };
+  },
+};
+
+router.post('/agents/run', asyncHandler(async (req, res) => {
+  const { agents = [] } = req.body;
+  const results = {};
+
+  await Promise.all(agents.map(async (id) => {
+    const runner = AGENT_RUN_MAP[id];
+    if (!runner) {
+      results[id] = { message: 'Unknown agent', success: false };
+      return;
+    }
+    try {
+      const result = await runner();
+      logActivity(id, 'run', true, result.message);
+      results[id] = { ...result, success: true };
+    } catch (err) {
+      logActivity(id, 'run', false, err.message);
+      results[id] = { message: err.message, success: false };
+    }
+  }));
+
+  res.json({ results });
 }));
 
 export { router as agentRouter };
