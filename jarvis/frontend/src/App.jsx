@@ -4,6 +4,8 @@ import GlowOrb from './components/GlowOrb.jsx';
 import JarvisUI from './components/JarvisUI.jsx';
 import AgentPanel from './components/AgentPanel.jsx';
 import MorningBriefing from './components/MorningBriefing.jsx';
+import AgentsPage from './components/AgentsPage.jsx';
+import DevOpsPage from './components/DevOpsPage.jsx';
 
 const isElectron = !!window.jarvisDesktop;
 
@@ -33,7 +35,14 @@ function formatDate(d) {
   return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
 }
 
+const NAV_TABS = [
+  { id: 'jarvis', label: 'JARVIS' },
+  { id: 'agents', label: 'AGENTS' },
+  { id: 'devops', label: 'DEV OPS' },
+];
+
 export default function App() {
+  const [currentPage, setCurrentPage] = useState('jarvis');
   const [activePanel, setActivePanel] = useState(null);
   const [showBriefing, setShowBriefing] = useState(false);
   const [orbState, setOrbState] = useState({ listening: false, speaking: false, loading: false });
@@ -108,60 +117,84 @@ export default function App() {
         </div>
       )}
 
+      {/* HUD Navigation Bar */}
+      <nav className="hud-nav">
+        {NAV_TABS.map(tab => (
+          <button
+            key={tab.id}
+            className={`hud-nav-tab ${currentPage === tab.id ? 'hud-nav-tab--active' : ''}`}
+            onClick={() => setCurrentPage(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
       <div style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center',
         zIndex: 10,
-        paddingTop: isElectron ? 40 : 20,
+        paddingTop: isElectron ? 72 : 52,
         overflowY: 'auto',
         overflowX: 'hidden',
       }}>
-        {/* HUD Header */}
-        <div className="hud-header">
-          <div className="hud-version">JARVIS v2.0 -- TACTICAL INTERFACE</div>
-          <div className="hud-clock">{formatTime(now)}</div>
-          <div className="hud-date">{formatDate(now)}</div>
-        </div>
-
-        {/* Arc Reactor Orb */}
-        <GlowOrb
-          listening={orbState.listening}
-          speaking={orbState.speaking}
-          processing={orbState.loading}
-        />
-
-        {/* Status Badge */}
-        <div className={`hud-status hud-status--${statusKey}`}>
-          {statusLabels[statusKey]}
-        </div>
-
-        {/* JarvisUI - all voice/command logic */}
-        <div style={{ width: '100%', maxWidth: 680, padding: '0 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <JarvisUI
-            ref={jarvisRef}
-            onAgentPanel={setActivePanel}
-            onBriefing={() => setShowBriefing(true)}
-            onOrbState={setOrbState}
-          />
-        </div>
-
-        {/* Quick Action Grid */}
-        <div className="hud-grid">
-          {QUICK_ACTIONS.map((action) => (
-            <div
-              key={action.id}
-              className="hud-tile"
-              onClick={() => handleQuickAction(action)}
-            >
-              <span className="hud-tile-icon">{action.icon}</span>
-              <span className="hud-tile-label">{action.label}</span>
+        {/* JARVIS Home Page */}
+        {currentPage === 'jarvis' && (
+          <>
+            {/* HUD Header */}
+            <div className="hud-header">
+              <div className="hud-version">JARVIS v2.0 -- TACTICAL INTERFACE</div>
+              <div className="hud-clock">{formatTime(now)}</div>
+              <div className="hud-date">{formatDate(now)}</div>
             </div>
-          ))}
-        </div>
 
-        {/* Hint */}
-        <div className="hud-hint">SAY &quot;JARVIS&quot; TO BEGIN</div>
+            {/* Arc Reactor Orb */}
+            <GlowOrb
+              listening={orbState.listening}
+              speaking={orbState.speaking}
+              processing={orbState.loading}
+            />
+
+            {/* Status Badge */}
+            <div className={`hud-status hud-status--${statusKey}`}>
+              {statusLabels[statusKey]}
+            </div>
+
+            {/* JarvisUI - all voice/command logic */}
+            <div style={{ width: '100%', maxWidth: 680, padding: '0 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <JarvisUI
+                ref={jarvisRef}
+                onAgentPanel={setActivePanel}
+                onBriefing={() => setShowBriefing(true)}
+                onOrbState={setOrbState}
+              />
+            </div>
+
+            {/* Quick Action Grid */}
+            <div className="hud-grid">
+              {QUICK_ACTIONS.map((action) => (
+                <div
+                  key={action.id}
+                  className="hud-tile"
+                  onClick={() => handleQuickAction(action)}
+                >
+                  <span className="hud-tile-icon">{action.icon}</span>
+                  <span className="hud-tile-label">{action.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Hint */}
+            <div className="hud-hint">SAY &quot;JARVIS&quot; TO BEGIN</div>
+          </>
+        )}
+
+        {/* Agents Page */}
+        {currentPage === 'agents' && <AgentsPage />}
+
+        {/* Dev Ops Page */}
+        {currentPage === 'devops' && <DevOpsPage />}
       </div>
 
       {activePanel && (
