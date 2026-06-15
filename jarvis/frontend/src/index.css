@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -11,6 +13,10 @@
   --accent: #3b82f6;
   --success: #22c55e;
   --danger: #ef4444;
+  --hud-blue: #38bdf8;
+  --hud-border: rgba(56, 189, 248, 0.2);
+  --hud-glow: rgba(56, 189, 248, 0.15);
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
 }
 
 html, body, #root {
@@ -24,3 +30,373 @@ html, body, #root {
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ---- HUD Scanline Overlay ---- */
+.hud-scanline {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(56, 189, 248, 0.015) 2px,
+    rgba(56, 189, 248, 0.015) 4px
+  );
+}
+
+/* ---- Arc Reactor / Orb ---- */
+@keyframes ring-rotate-cw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes ring-rotate-ccw {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+@keyframes core-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+@keyframes core-pulse-fast {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.15); opacity: 1; }
+}
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 30px 8px var(--orb-glow); }
+  50%      { box-shadow: 0 0 60px 20px var(--orb-glow); }
+}
+@keyframes particle-orbit {
+  0%   { transform: rotate(0deg) translateX(68px) rotate(0deg); opacity: 0.8; }
+  50%  { opacity: 1; }
+  100% { transform: rotate(360deg) translateX(68px) rotate(-360deg); opacity: 0.8; }
+}
+
+.reactor-wrapper {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reactor-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+  border-color: transparent;
+}
+
+.reactor-ring--outer {
+  width: 160px;
+  height: 160px;
+  border-top-color: var(--orb-color);
+  border-right-color: transparent;
+  border-bottom-color: var(--orb-color);
+  border-left-color: transparent;
+  animation: ring-rotate-cw 8s linear infinite;
+  opacity: 0.6;
+}
+
+.reactor-ring--mid {
+  width: 130px;
+  height: 130px;
+  border-top-color: transparent;
+  border-right-color: var(--orb-color);
+  border-bottom-color: transparent;
+  border-left-color: var(--orb-color);
+  animation: ring-rotate-ccw 5s linear infinite;
+  opacity: 0.5;
+}
+
+.reactor-ring--inner {
+  width: 105px;
+  height: 105px;
+  border-top-color: var(--orb-color);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: var(--orb-color);
+  animation: ring-rotate-cw 3s linear infinite;
+  opacity: 0.7;
+}
+
+.reactor-ring--dashed {
+  width: 145px;
+  height: 145px;
+  border: 1px dashed;
+  border-color: var(--orb-color);
+  opacity: 0.15;
+  animation: ring-rotate-ccw 20s linear infinite;
+}
+
+.reactor-core {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, var(--orb-color), rgba(29, 78, 216, 0.4));
+  animation: core-pulse 3s ease-in-out infinite, glow-breathe 3s ease-in-out infinite;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  transition: background 0.5s;
+}
+
+.reactor-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--orb-color);
+  top: 50%;
+  left: 50%;
+  margin: -1.5px;
+  animation: particle-orbit linear infinite;
+  opacity: 0.7;
+}
+
+/* State modifiers */
+.reactor--listening .reactor-core {
+  animation: core-pulse-fast 1.2s ease-in-out infinite, glow-breathe 1.2s ease-in-out infinite;
+}
+.reactor--listening .reactor-ring--outer { animation-duration: 3s; }
+.reactor--listening .reactor-ring--mid   { animation-duration: 2s; }
+.reactor--listening .reactor-ring--inner { animation-duration: 1.2s; }
+
+.reactor--speaking .reactor-core {
+  animation: core-pulse 1.5s ease-in-out infinite, glow-breathe 1.5s ease-in-out infinite;
+}
+
+.reactor--processing .reactor-ring--outer { animation-duration: 2s; }
+.reactor--processing .reactor-ring--mid   { animation-duration: 1.5s; }
+.reactor--processing .reactor-ring--inner { animation-duration: 0.8s; }
+.reactor--processing .reactor-core {
+  animation: core-pulse-fast 0.8s ease-in-out infinite;
+}
+
+/* ---- HUD Header ---- */
+.hud-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+.hud-version {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--hud-blue);
+  opacity: 0.6;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.hud-clock {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--hud-blue);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+}
+.hud-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  margin-top: 2px;
+}
+
+/* ---- Status Badge ---- */
+.hud-status {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 4px 20px;
+  border-radius: 2px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-glow);
+  margin: 12px 0 8px;
+  text-align: center;
+  min-width: 160px;
+}
+.hud-status--idle       { color: var(--hud-blue); border-color: rgba(56, 189, 248, 0.3); }
+.hud-status--listening  { color: #60a5fa; border-color: rgba(96, 165, 250, 0.5); background: rgba(96, 165, 250, 0.1); }
+.hud-status--speaking   { color: #4ade80; border-color: rgba(74, 222, 128, 0.4); background: rgba(74, 222, 128, 0.08); }
+.hud-status--processing { color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); }
+
+/* ---- Quick Action Grid ---- */
+.hud-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  margin: 16px auto 0;
+}
+
+.hud-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--hud-border);
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+  transition: all 0.25s;
+  user-select: none;
+}
+.hud-tile:hover {
+  border-color: var(--hud-blue);
+  background: rgba(56, 189, 248, 0.06);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.12), inset 0 0 16px rgba(56, 189, 248, 0.04);
+}
+.hud-tile:active {
+  transform: scale(0.97);
+}
+.hud-tile-icon {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--hud-blue);
+  opacity: 0.8;
+  line-height: 1;
+}
+.hud-tile-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+/* ---- HUD Hint ---- */
+.hud-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.15em;
+  text-align: center;
+  margin-top: 20px;
+  opacity: 0.5;
+}
+
+/* ---- HUD Chat Log ---- */
+.hud-log {
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(2, 4, 8, 0.7);
+  border: 1px solid var(--hud-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-top: 12px;
+}
+.hud-log-entry {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+.hud-log-entry--user {
+  color: var(--text-dim);
+}
+.hud-log-entry--user::before {
+  content: '> ';
+  color: var(--hud-blue);
+  opacity: 0.5;
+}
+.hud-log-entry--jarvis {
+  color: var(--hud-blue);
+}
+.hud-log-entry--jarvis::before {
+  content: 'JARVIS // ';
+  opacity: 0.4;
+}
+
+/* ---- Jarvis Input ---- */
+.hud-input-row {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  margin-top: 10px;
+}
+.hud-input {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 4px;
+  background: rgba(2, 4, 8, 0.6);
+  border: 1px solid var(--hud-border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.hud-input:focus {
+  border-color: var(--hud-blue);
+}
+.hud-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+.hud-send-btn {
+  padding: 10px 18px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: var(--hud-blue);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.hud-send-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--hud-blue);
+}
+
+/* ---- Mic Button ---- */
+.hud-mic-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--hud-border);
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  transition: all 0.25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  margin: 8px 0;
+}
+.hud-mic-btn--listening {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.25);
+}
+.hud-mic-btn--speaking {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* ---- Response Text ---- */
+.hud-response {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--hud-blue);
+  text-align: center;
+  max-width: 500px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+  opacity: 0.9;
+}

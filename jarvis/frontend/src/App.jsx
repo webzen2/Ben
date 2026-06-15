@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import StarField from './components/StarField.jsx';
 import GlowOrb from './components/GlowOrb.jsx';
 import JarvisUI from './components/JarvisUI.jsx';
@@ -7,11 +7,39 @@ import MorningBriefing from './components/MorningBriefing.jsx';
 
 const isElectron = !!window.jarvisDesktop;
 
+const QUICK_ACTIONS = [
+  { id: 'email',    icon: '@',  label: 'Email',     command: 'check my email' },
+  { id: 'schedule', icon: '#',  label: 'Schedule',   command: "what's on my calendar today" },
+  { id: 'tasks',    icon: '/',  label: 'Tasks',      command: 'show my tasks' },
+  { id: 'research', icon: '~',  label: 'Research',   command: 'competitor intel update' },
+  { id: 'briefing', icon: '>',  label: 'Briefing',   command: null }, // special: triggers briefing
+  { id: 'memory',   icon: '?',  label: 'Memory',     command: 'what do you know' },
+];
+
+function useClockTick() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function formatTime(d) {
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+}
+
 export default function App() {
   const [activePanel, setActivePanel] = useState(null);
   const [showBriefing, setShowBriefing] = useState(false);
-  const [orbState, setOrbState] = useState({ listening: false, speaking: false });
+  const [orbState, setOrbState] = useState({ listening: false, speaking: false, loading: false });
   const [maximized, setMaximized] = useState(false);
+  const jarvisRef = useRef(null);
+  const now = useClockTick();
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -30,10 +58,18 @@ export default function App() {
   };
 
   const hideJarvis = () => {
-    if (isElectron) {
-      window.jarvisDesktop.hideWindow();
-    }
+    if (isElectron) window.jarvisDesktop.hideWindow();
   };
+
+  const handleQuickAction = useCallback((action) => {
+    if (action.id === 'briefing') {
+      setShowBriefing(true);
+      return;
+    }
+    if (action.command && jarvisRef.current?.injectCommand) {
+      jarvisRef.current.injectCommand(action.command);
+    }
+  }, []);
 
   const btnStyle = {
     WebkitAppRegion: 'no-drag',
@@ -41,9 +77,17 @@ export default function App() {
     cursor: 'pointer', fontSize: 13, padding: '0 4px',
   };
 
+  const statusKey = orbState.listening ? 'listening'
+    : orbState.speaking ? 'speaking'
+    : orbState.loading ? 'processing'
+    : 'idle';
+
+  const statusLabels = { idle: 'STANDBY', listening: 'LISTENING', speaking: 'SPEAKING', processing: 'PROCESSING' };
+
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <StarField />
+      <div className="hud-scanline" />
 
       {isElectron && (
         <div style={{
@@ -67,16 +111,57 @@ export default function App() {
       <div style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
+        alignItems: 'center',
         zIndex: 10,
-        paddingTop: isElectron ? 32 : 0,
+        paddingTop: isElectron ? 40 : 20,
+        overflowY: 'auto',
+        overflowX: 'hidden',
       }}>
-        <GlowOrb listening={orbState.listening} speaking={orbState.speaking} />
-        <JarvisUI
-          onAgentPanel={setActivePanel}
-          onBriefing={() => setShowBriefing(true)}
-          onOrbState={setOrbState}
+        {/* HUD Header */}
+        <div className="hud-header">
+          <div className="hud-version">JARVIS v2.0 -- TACTICAL INTERFACE</div>
+          <div className="hud-clock">{formatTime(now)}</div>
+          <div className="hud-date">{formatDate(now)}</div>
+        </div>
+
+        {/* Arc Reactor Orb */}
+        <GlowOrb
+          listening={orbState.listening}
+          speaking={orbState.speaking}
+          processing={orbState.loading}
         />
+
+        {/* Status Badge */}
+        <div className={`hud-status hud-status--${statusKey}`}>
+          {statusLabels[statusKey]}
+        </div>
+
+        {/* JarvisUI - all voice/command logic */}
+        <div style={{ width: '100%', maxWidth: 680, padding: '0 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <JarvisUI
+            ref={jarvisRef}
+            onAgentPanel={setActivePanel}
+            onBriefing={() => setShowBriefing(true)}
+            onOrbState={setOrbState}
+          />
+        </div>
+
+        {/* Quick Action Grid */}
+        <div className="hud-grid">
+          {QUICK_ACTIONS.map((action) => (
+            <div
+              key={action.id}
+              className="hud-tile"
+              onClick={() => handleQuickAction(action)}
+            >
+              <span className="hud-tile-icon">{action.icon}</span>
+              <span className="hud-tile-label">{action.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Hint */}
+        <div className="hud-hint">SAY &quot;JARVIS&quot; TO BEGIN</div>
       </div>
 
       {activePanel && (
