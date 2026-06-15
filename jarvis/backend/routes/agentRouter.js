@@ -159,24 +159,65 @@ router.get('/activity', asyncHandler(async (req, res) => {
 
 const AGENT_RUN_MAP = {
   nova: async () => {
-    const data = await clientAgent.getPipeline();
-    return { message: `Pipeline loaded: ${data?.length || 0} contacts` };
+    try {
+      const pipeline = await clientAgent.getPipeline();
+      const contracts = await clientAgent.getContractStatus();
+      return {
+        message: `Pipeline: ${pipeline?.length || 0} contacts, ${contracts?.length || 0} contracts`,
+        data: { pipeline, contracts },
+      };
+    } catch {
+      return { message: 'GHL not configured — add GHL_API_KEY to connect', data: null };
+    }
   },
   echo: async () => {
-    const data = await socialAgent.getAnalytics();
-    return { message: 'Social analytics refreshed' };
+    try {
+      const analytics = await socialAgent.getAnalytics();
+      const dms = await socialAgent.getDraftReplies();
+      return {
+        message: `Analytics loaded, ${dms?.length || 0} DM drafts ready`,
+        data: { analytics, dms },
+      };
+    } catch {
+      return { message: 'Social not configured — add Instagram/Facebook tokens', data: null };
+    }
   },
   radar: async () => {
-    const data = await researchAgent.getCompetitorIntel();
-    return { message: `Intel pulled: ${data?.length || 0} results` };
+    try {
+      const intel = await researchAgent.getCompetitorIntel();
+      return {
+        message: `Intel: ${intel?.length || 0} results from competitor scan`,
+        data: { intel: intel?.slice(0, 5) },
+      };
+    } catch {
+      return { message: 'Search not configured — add SERPER_API_KEY or BRAVE_API_KEY', data: null };
+    }
   },
   vault: async () => {
-    const data = await memoryAgent.getMemories();
-    return { message: `Memory loaded: ${data?.length || 0} entries` };
+    const memories = await memoryAgent.getMemories();
+    const categories = {};
+    (memories || []).forEach(m => {
+      categories[m.category || 'general'] = (categories[m.category || 'general'] || 0) + 1;
+    });
+    return {
+      message: `${memories?.length || 0} memories loaded across ${Object.keys(categories).length} categories`,
+      data: { memories, categories },
+    };
   },
   pulse: async () => {
-    const data = await calendarAgent.getTodaySchedule();
-    return { message: `Schedule loaded: ${data?.length || 0} events` };
+    const results = { schedule: null, emails: null };
+    try {
+      results.schedule = await calendarAgent.getTodaySchedule();
+    } catch {}
+    try {
+      results.emails = await emailAgent.checkInbox({ maxResults: 5 });
+    } catch {}
+    const eventCount = results.schedule?.length || 0;
+    const emailCount = results.emails?.count || results.emails?.messages?.length || 0;
+    return {
+      message: `${eventCount} events today, ${emailCount} recent emails`,
+      data: results,
+    };
   },
 };
 

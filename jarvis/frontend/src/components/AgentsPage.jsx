@@ -117,28 +117,28 @@ export default function AgentsPage() {
   }, []);
 
   const runAgent = useCallback(async (agentId) => {
-    if (agentId === 'jarvis') return; // Jarvis is always online
+    if (agentId === 'jarvis') return;
     setAgentStates(prev => ({
       ...prev,
-      [agentId]: { ...prev[agentId], status: 'RUNNING' },
+      [agentId]: { ...prev[agentId], status: 'RUNNING', lastResult: null },
     }));
-    addLog(agentId, 'Agent activated');
+    addLog(agentId, 'Agent activated...');
 
     try {
       const { data } = await axios.post(`${API}/agents/run`, { agents: [agentId] }, { headers: apiHeaders });
       const result = data.results?.[agentId];
-      addLog(agentId, result?.message || 'Task complete');
-    } catch {
-      addLog(agentId, 'Backend offline — simulated run');
-    }
-
-    setTimeout(() => {
+      addLog(agentId, result?.message || 'Done');
       setAgentStates(prev => ({
         ...prev,
-        [agentId]: { ...prev[agentId], status: 'ONLINE' },
+        [agentId]: { ...prev[agentId], status: 'ONLINE', lastResult: result },
       }));
-      addLog(agentId, 'Task complete');
-    }, 3000);
+    } catch {
+      addLog(agentId, 'Backend offline');
+      setAgentStates(prev => ({
+        ...prev,
+        [agentId]: { ...prev[agentId], status: 'ONLINE', lastResult: { message: 'Backend offline', success: false } },
+      }));
+    }
   }, [addLog]);
 
   const parseAndRun = useCallback((input) => {
@@ -250,6 +250,14 @@ export default function AgentsPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Result Data */}
+              {state.lastResult?.data && (
+                <div className="agent-card-result" style={{ borderColor: `${agent.color}22` }}>
+                  <div className="agent-result-label" style={{ color: agent.color }}>LAST OUTPUT</div>
+                  <pre className="agent-result-data">{JSON.stringify(state.lastResult.data, null, 2)}</pre>
+                </div>
+              )}
 
               {/* Run Button */}
               {agent.id !== 'jarvis' && (
