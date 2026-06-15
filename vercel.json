@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd jarvis/frontend && npm install && npm run build",
+  "outputDirectory": "jarvis/frontend/dist",
+  "installCommand": "cd jarvis/frontend && npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://ben-production-1559.up.railway.app/api/:path*" },
+    { "source": "/auth/:path*", "destination": "https://ben-production-1559.up.railway.app/auth/:path*" },
+    { "source": "/health", "destination": "https://ben-production-1559.up.railway.app/health" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
