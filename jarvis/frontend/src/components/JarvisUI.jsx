@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperat
 import axios from 'axios';
 import { speak, startListening, stopListening, stopSpeaking } from '../agents/voiceAgent.js';
 import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
+import DocumentPreview from './DocumentPreview.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 const API_TOKEN = import.meta.env.VITE_JARVIS_TOKEN || '';
@@ -70,6 +71,7 @@ const JarvisUI = forwardRef(function JarvisUI({ onAgentPanel, onBriefing, onOrbS
   const [history, setHistory] = useState([]);
   const [inputText, setInputText] = useState('');
   const [wakeActive, setWakeActive] = useState(false);
+  const [activeDoc, setActiveDoc] = useState(null);
   const historyRef = useRef(null);
   const handleCommandRef = useRef(null);
   const isProcessingRef = useRef(false);
@@ -264,6 +266,10 @@ const JarvisUI = forwardRef(function JarvisUI({ onAgentPanel, onBriefing, onOrbS
         window.open(data.url, '_blank');
       }
 
+      if (data.data && typeof data.data === 'object') {
+        setActiveDoc({ title: reply, data: data.data, response: reply });
+      }
+
       if (data.agent && data.agent !== 'general') {
         onAgentPanel?.({ agent: data.agent, data: data.data });
       }
@@ -375,6 +381,10 @@ const JarvisUI = forwardRef(function JarvisUI({ onAgentPanel, onBriefing, onOrbS
             </div>
           ))}
         </div>
+      )}
+
+      {activeDoc && (
+        <DocumentPreview document={activeDoc} onClose={() => setActiveDoc(null)} />
       )}
     </div>
   );
