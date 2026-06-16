@@ -1,42 +1,53 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useMemo } from 'react';
 
-export default function GlowOrb({ listening = false, speaking = false }) {
-  const orbRef = useRef(null);
+const STATE_COLORS = {
+  idle:       { main: '#3b82f6', glow: 'rgba(59,130,246,0.35)' },
+  listening:  { main: '#60a5fa', glow: 'rgba(96,165,250,0.5)' },
+  speaking:   { main: '#4ade80', glow: 'rgba(74,222,128,0.45)' },
+  processing: { main: '#fbbf24', glow: 'rgba(251,191,36,0.4)' },
+};
 
-  useEffect(() => {
-    const el = orbRef.current;
-    let animId;
-    let t = 0;
+export default function GlowOrb({ listening = false, speaking = false, processing = false, onClick }) {
+  const state = listening ? 'listening' : speaking ? 'speaking' : processing ? 'processing' : 'idle';
+  const colors = STATE_COLORS[state];
 
-    const animate = () => {
-      t += 0.02;
-      const scale = 1 + Math.sin(t) * 0.04;
-      const glow = listening ? '0 0 60px 20px rgba(59,130,246,0.6)' :
-                   speaking  ? '0 0 60px 20px rgba(34,197,94,0.6)' :
-                               '0 0 40px 12px rgba(59,130,246,0.3)';
-      el.style.transform = `scale(${scale})`;
-      el.style.boxShadow = glow;
-      animId = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => cancelAnimationFrame(animId);
-  }, [listening, speaking]);
+  // Generate particle positions at build time
+  const particles = useMemo(() => [
+    { duration: '4s', delay: '0s' },
+    { duration: '5.5s', delay: '-1.5s' },
+    { duration: '3.5s', delay: '-3s' },
+    { duration: '6s', delay: '-0.8s' },
+    { duration: '4.8s', delay: '-2.2s' },
+  ], []);
 
-  const color = listening ? '#3b82f6' : speaking ? '#22c55e' : '#1d4ed8';
+  const stateClass = `reactor--${state}`;
 
   return (
     <div
-      ref={orbRef}
-      style={{
-        width: 120,
-        height: 120,
-        borderRadius: '50%',
-        background: `radial-gradient(circle at 35% 35%, ${color}cc, ${color}44)`,
-        border: `1px solid ${color}66`,
-        marginBottom: 32,
-        transition: 'background 0.4s',
-        cursor: 'pointer',
-      }}
-    />
+      className={`reactor-wrapper ${stateClass}`}
+      style={{ '--orb-color': colors.main, '--orb-glow': colors.glow }}
+      onClick={onClick}
+    >
+      {/* Dashed outer ring */}
+      <div className="reactor-ring reactor-ring--dashed" />
+      {/* Outer ring */}
+      <div className="reactor-ring reactor-ring--outer" />
+      {/* Middle ring */}
+      <div className="reactor-ring reactor-ring--mid" />
+      {/* Inner ring */}
+      <div className="reactor-ring reactor-ring--inner" />
+
+      {/* Particles */}
+      {particles.map((p, i) => (
+        <div
+          key={i}
+          className="reactor-particle"
+          style={{ animationDuration: p.duration, animationDelay: p.delay }}
+        />
+      ))}
+
+      {/* Core */}
+      <div className="reactor-core" />
+    </div>
   );
 }

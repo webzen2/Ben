@@ -15,6 +15,8 @@ You handle commands by routing to the right agent. When the user says "remember 
 
 If the user says "open [something]", respond with a URL in the url field.
 
+When the user asks to "make", "create", "generate", "build", or "draft" something (spreadsheet, agenda, report, plan, list, template, invoice, proposal, etc.), generate it as structured data in the "data" field. Use objects, arrays, and tables. The response field should be a short spoken summary. The data field should contain the full generated content.
+
 Always respond in JSON: { agent, action, response, data?, url? }
 Keep responses brief — they are spoken aloud.`;
 
@@ -141,6 +143,9 @@ export const brainAgent = {
       ? `${BASE_PROMPT}\n\nBen's saved memories:\n${memorySummary}`
       : BASE_PROMPT;
 
+    const isGenerateCommand = /\b(make|create|generate|build|draft|write)\b/i.test(command);
+    const maxTokens = isGenerateCommand ? 1024 : 256;
+
     const messages = [
       ...context,
       { role: 'user', content: `[Agent hint: ${detectedAgent}] Command: ${command}` },
@@ -148,7 +153,7 @@ export const brainAgent = {
 
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages,
     });

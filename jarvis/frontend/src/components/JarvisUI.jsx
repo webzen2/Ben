@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import axios from 'axios';
 import { speak, startListening, stopListening, stopSpeaking } from '../agents/voiceAgent.js';
 import { startWakeDetection, stopWakeDetection, pauseWakeDetection, resumeWakeDetection } from '../agents/wakeDetector.js';
+import DocumentPreview from './DocumentPreview.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'https://ben-production-1559.up.railway.app/api/agents';
 const API_TOKEN = import.meta.env.VITE_JARVIS_TOKEN || '';
@@ -61,7 +62,7 @@ function resolveUrl(query) {
   return `https://www.google.com/search?q=${encodeURIComponent(lc)}`;
 }
 
-export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
+const JarvisUI = forwardRef(function JarvisUI({ onAgentPanel, onBriefing, onOrbState }, ref) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -70,14 +71,16 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   const [history, setHistory] = useState([]);
   const [inputText, setInputText] = useState('');
   const [wakeActive, setWakeActive] = useState(false);
+  const [activeDoc, setActiveDoc] = useState(null);
   const historyRef = useRef(null);
   const handleCommandRef = useRef(null);
   const isProcessingRef = useRef(false);
   const speakingRef = useRef(false);
 
+  // Report all state changes (listening, speaking, loading) to parent
   useEffect(() => {
-    onOrbState?.({ listening, speaking });
-  }, [listening, speaking, onOrbState]);
+    onOrbState?.({ listening, speaking, loading });
+  }, [listening, speaking, loading, onOrbState]);
 
   useEffect(() => {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
@@ -134,6 +137,9 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       return;
     }
 
+    // Add user message to history
+    setHistory(h => [...h, { role: 'user', text: command }]);
+
     const lc = command.toLowerCase().trim();
 
     // "Stop" / "Jarvis stop" — silence and go back to listening
@@ -151,6 +157,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       window.focus();
       const msg = "I'm right here, Ben.";
       setResponse(msg);
+      setHistory(h => [...h, { role: 'jarvis', text: msg }]);
       speakAndRelisten(msg);
       setLoading(false);
       return;
@@ -170,10 +177,12 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         interruptSpeaking();
         const reminder = task === 'timer done' ? `Ben, your ${label} timer is up.` : `Ben, reminder: ${task}`;
         setResponse(reminder);
+        setHistory(h => [...h, { role: 'jarvis', text: reminder }]);
         speakAndRelisten(reminder);
       }, ms);
       const msg = `Got it, I'll remind you in ${label}.`;
       setResponse(msg);
+      setHistory(h => [...h, { role: 'jarvis', text: msg }]);
       speakAndRelisten(msg);
       return;
     }
@@ -186,6 +195,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       const result = (pct / 100 * base).toFixed(2);
       const msg = `${pct}% of $${base.toLocaleString()} is $${parseFloat(result).toLocaleString()}`;
       setResponse(msg);
+      setHistory(h => [...h, { role: 'jarvis', text: msg }]);
       speakAndRelisten(msg);
       return;
     }
@@ -201,6 +211,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
       else if (op === '/') result = b !== 0 ? a / b : 'undefined';
       const msg = `That's ${typeof result === 'number' ? result.toLocaleString() : result}`;
       setResponse(msg);
+      setHistory(h => [...h, { role: 'jarvis', text: msg }]);
       speakAndRelisten(msg);
       return;
     }
@@ -216,6 +227,7 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         window.focus();
         const msg = "I'm right here.";
         setResponse(msg);
+        setHistory(h => [...h, { role: 'jarvis', text: msg }]);
         speakAndRelisten(msg);
         setLoading(false);
         return;
@@ -254,6 +266,10 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
         window.open(data.url, '_blank');
       }
 
+      if (data.data && typeof data.data === 'object') {
+        setActiveDoc({ title: reply, data: data.data, response: reply });
+      }
+
       if (data.agent && data.agent !== 'general') {
         onAgentPanel?.({ agent: data.agent, data: data.data });
       }
@@ -267,6 +283,15 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
   }, [history, onAgentPanel, speakAndRelisten, interruptSpeaking, beginListening]);
 
   handleCommandRef.current = handleCommand;
+
+  // Expose injectCommand to parent via ref
+  useImperativeHandle(ref, () => ({
+    injectCommand: (command) => {
+      interruptSpeaking();
+      isProcessingRef.current = true;
+      handleCommand(command);
+    },
+  }), [handleCommand, interruptSpeaking]);
 
   // Wake detection — "Jarvis" hotword triggers greeting then listening
   useEffect(() => {
@@ -316,83 +341,53 @@ export default function JarvisUI({ onAgentPanel, onBriefing, onOrbState }) {
     setInputText('');
   };
 
+  const micClass = listening ? 'hud-mic-btn hud-mic-btn--listening'
+    : speaking ? 'hud-mic-btn hud-mic-btn--speaking'
+    : 'hud-mic-btn';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 680, padding: '0 20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
 
-      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8, letterSpacing: '0.05em', display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span>
-          {listening ? 'LISTENING' : speaking ? 'SPEAKING' : loading ? 'PROCESSING' : 'JARVIS'}
-        </span>
-        <span style={{
-          fontSize: 10, padding: '2px 8px', borderRadius: 10,
-          background: 'rgba(34,197,94,0.15)',
-          border: '1px solid rgba(34,197,94,0.4)',
-          color: '#86efac',
-        }}>
-          ALWAYS ON
-        </span>
-      </div>
-
+      {/* Response text */}
       {response && (
-        <div style={{ fontSize: 15, color: '#7dd3fc', marginBottom: 16, textAlign: 'center', maxWidth: 500 }}>
-          {response}
-        </div>
+        <div className="hud-response">{response}</div>
       )}
 
-      <button
-        onClick={toggleListen}
-        style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: listening ? 'rgba(59,130,246,0.25)' : speaking ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)',
-          border: `2px solid ${listening ? '#3b82f6' : speaking ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
-          cursor: 'pointer', fontSize: 12, marginBottom: 20,
-          transition: 'all 0.2s',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: listening ? '#3b82f6' : speaking ? '#ef4444' : '#64748b', letterSpacing: '0.05em',
-        }}
-      >
+      {/* Mic toggle */}
+      <button onClick={toggleListen} className={micClass}>
         {listening ? 'ON' : speaking ? 'STOP' : 'MIC'}
       </button>
 
-      <form onSubmit={submitText} style={{ display: 'flex', width: '100%', gap: 8, marginBottom: 20 }}>
+      {/* Text input */}
+      <form onSubmit={submitText} className="hud-input-row">
         <input
           value={inputText}
           onChange={e => setInputText(e.target.value)}
           placeholder="Type a command..."
-          style={{
-            flex: 1, padding: '10px 16px', borderRadius: 24,
-            background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(59,130,246,0.25)',
-            color: '#e2e8f0', fontSize: 14, outline: 'none',
-          }}
+          className="hud-input"
         />
-        <button type="submit" style={{
-          padding: '10px 20px', borderRadius: 24,
-          background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)',
-          color: '#93c5fd', cursor: 'pointer', fontSize: 14,
-        }}>Send</button>
+        <button type="submit" className="hud-send-btn">SEND</button>
       </form>
 
+      {/* Chat log */}
       {history.length > 0 && (
-        <div
-          ref={historyRef}
-          style={{
-            width: '100%', maxHeight: 280, overflowY: 'auto',
-            background: 'rgba(15,23,42,0.6)', borderRadius: 12,
-            border: '1px solid rgba(59,130,246,0.15)', padding: 12,
-          }}
-        >
+        <div ref={historyRef} className="hud-log">
           {history.map((m, i) => (
-            <div key={i} style={{
-              fontSize: 13, marginBottom: 6,
-              color: '#7dd3fc',
-              textAlign: 'left',
-            }}>
-              <span style={{ opacity: 0.5 }}>Jarvis: </span>
+            <div
+              key={i}
+              className={`hud-log-entry ${m.role === 'user' ? 'hud-log-entry--user' : 'hud-log-entry--jarvis'}`}
+            >
               {m.text}
             </div>
           ))}
         </div>
       )}
+
+      {activeDoc && (
+        <DocumentPreview document={activeDoc} onClose={() => setActiveDoc(null)} />
+      )}
     </div>
   );
-}
+});
+
+export default JarvisUI;

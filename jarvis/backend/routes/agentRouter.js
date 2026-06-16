@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { logActivity, getActivities, getErrors } from '../middleware/activityLogger.js';
 
 import { clientAgent } from '../agents/clientAgent.js';
 import { filesAgent } from '../agents/filesAgent.js';
@@ -99,6 +100,17 @@ router.post('/email/send', asyncHandler(async (req, res) => {
 }));
 
 // ── Memory Agent ──────────────────────────────────────────────
+router.get('/memory/grouped', asyncHandler(async (_, res) => {
+  const memories = await memoryAgent.getMemories();
+  const grouped = {};
+  (memories || []).forEach(m => {
+    const cat = m.category || 'general';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(m);
+  });
+  res.json(grouped);
+}));
+
 router.get('/memory', asyncHandler(async (req, res) => {
   res.json(await memoryAgent.getMemories(req.query.category));
 }));
@@ -131,6 +143,116 @@ router.get('/briefing', asyncHandler(async (_, res) => {
   });
 
   res.json(briefing);
+}));
+
+// ── System Status & Activity ─────────────────────────────────
+router.get('/status', asyncHandler(async (_, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    uptime: process.uptime(),
+    memoryMB: Math.round(mem.rss / 1024 / 1024),
+    agentCount: 6,
+    timestamp: Date.now(),
+    integrations: {
+      gmail: !!process.env.GOOGLE_REFRESH_TOKEN,
+      ghl: !!process.env.GHL_API_KEY,
+      instagram: !!process.env.INSTAGRAM_ACCESS_TOKEN,
+      facebook: !!process.env.FACEBOOK_ACCESS_TOKEN,
+      brave: !!(process.env.BRAVE_API_KEY || process.env.SERPER_API_KEY),
+    },
+  });
+}));
+
+router.get('/activity', asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json({ activities: getActivities(limit), errors: getErrors(limit) });
+}));
+
+const AGENT_RUN_MAP = {
+  nova: async () => {
+    try {
+      const pipeline = await clientAgent.getPipeline();
+      const contracts = await clientAgent.getContractStatus();
+      return {
+        message: `Pipeline: ${pipeline?.length || 0} contacts, ${contracts?.length || 0} contracts`,
+        data: { pipeline, contracts },
+      };
+    } catch {
+      return { message: 'GHL not configured — add GHL_API_KEY to connect', data: null };
+    }
+  },
+  echo: async () => {
+    try {
+      const analytics = await socialAgent.getAnalytics();
+      const dms = await socialAgent.getDraftReplies();
+      return {
+        message: `Analytics loaded, ${dms?.length || 0} DM drafts ready`,
+        data: { analytics, dms },
+      };
+    } catch {
+      return { message: 'Social not configured — add Instagram/Facebook tokens', data: null };
+    }
+  },
+  radar: async () => {
+    try {
+      const intel = await researchAgent.getCompetitorIntel();
+      return {
+        message: `Intel: ${intel?.length || 0} results from competitor scan`,
+        data: { intel: intel?.slice(0, 5) },
+      };
+    } catch {
+      return { message: 'Search not configured — add SERPER_API_KEY or BRAVE_API_KEY', data: null };
+    }
+  },
+  vault: async () => {
+    const memories = await memoryAgent.getMemories();
+    const categories = {};
+    (memories || []).forEach(m => {
+      categories[m.category || 'general'] = (categories[m.category || 'general'] || 0) + 1;
+    });
+    return {
+      message: `${memories?.length || 0} memories loaded across ${Object.keys(categories).length} categories`,
+      data: { memories, categories },
+    };
+  },
+  pulse: async () => {
+    const results = { schedule: null, emails: null };
+    try {
+      results.schedule = await calendarAgent.getTodaySchedule();
+    } catch {}
+    try {
+      results.emails = await emailAgent.checkInbox({ maxResults: 5 });
+    } catch {}
+    const eventCount = results.schedule?.length || 0;
+    const emailCount = results.emails?.count || results.emails?.messages?.length || 0;
+    return {
+      message: `${eventCount} events today, ${emailCount} recent emails`,
+      data: results,
+    };
+  },
+};
+
+router.post('/agents/run', asyncHandler(async (req, res) => {
+  const { agents = [] } = req.body;
+  const results = {};
+
+  await Promise.all(agents.map(async (id) => {
+    const runner = AGENT_RUN_MAP[id];
+    if (!runner) {
+      results[id] = { message: 'Unknown agent', success: false };
+      return;
+    }
+    try {
+      const result = await runner();
+      logActivity(id, 'run', true, result.message);
+      results[id] = { ...result, success: true };
+    } catch (err) {
+      logActivity(id, 'run', false, err.message);
+      results[id] = { message: err.message, success: false };
+    }
+  }));
+
+  res.json({ results });
 }));
 
 export { router as agentRouter };
