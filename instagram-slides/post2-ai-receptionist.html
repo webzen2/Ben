@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+    font-family: 'Arial', sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.08) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .glow-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.45; }
+  .orb1 { width: 450px; height: 450px; background: #6366f1; top: -150px; left: 50%; transform: translateX(-50%); }
+  .orb2 { width: 320px; height: 320px; background: #ec4899; bottom: -100px; right: -80px; }
+  .content {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+    padding: 80px;
+  }
+  .badge {
+    background: rgba(168,85,247,0.2);
+    border: 1px solid rgba(168,85,247,0.5);
+    color: #d8b4fe;
+    font-size: 22px; font-weight: 600;
+    padding: 10px 28px; border-radius: 50px;
+    letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 48px;
+  }
+  h1 {
+    font-size: 82px; font-weight: 900;
+    line-height: 1.05;
+    background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #c084fc 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 40px;
+  }
+  .sub {
+    font-size: 30px; color: rgba(255,255,255,0.6);
+    font-weight: 400; line-height: 1.5;
+    max-width: 760px;
+    margin-bottom: 48px;
+  }
+  .sub span { color: #a5b4fc; font-weight: 700; }
+  .feature-list {
+    display: flex; flex-direction: column; gap: 18px;
+    align-items: flex-start;
+  }
+  .feature {
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 18px 32px;
+    font-size: 26px; color: rgba(255,255,255,0.85);
+    min-width: 560px;
+  }
+  .check { color: #4ade80; font-size: 28px; font-weight: 900; }
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+<div class="content">
+  <div class="badge">New Automation</div>
+  <h1>Meet Your<br>AI Receptionist</h1>
+  <p class="sub">Answers calls, books appointments, and qualifies leads <span>24/7</span> — even while you sleep.</p>
+  <div class="feature-list">
+    <div class="feature"><span class="check">✓</span> Answers every call instantly</div>
+    <div class="feature"><span class="check">✓</span> Books straight to your calendar</div>
+    <div class="feature"><span class="check">✓</span> Sounds like a real person</div>
+  </div>
+</div>
+</body>
+</html>
