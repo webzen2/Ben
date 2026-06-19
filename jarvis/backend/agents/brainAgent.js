@@ -1,6 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let client;
+function getClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
 
 const SYSTEM_PROMPT = `You are Jarvis, Ben Curry's private AI operating system for BCAutomations (Fayetteville, AR).
 You are voice-first, decisive, and brief. Ben is the founder — you address him by name occasionally.
@@ -34,7 +38,7 @@ export const brainAgent = {
       { role: 'user', content: `[Agent hint: ${detectedAgent}] Command: ${command}` },
     ];
 
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
@@ -59,7 +63,7 @@ export const brainAgent = {
 - Pipeline snapshot: ${JSON.stringify(pipeline)}
 Keep it under 120 words, conversational, start with "Good morning, Ben."`;
 
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }],

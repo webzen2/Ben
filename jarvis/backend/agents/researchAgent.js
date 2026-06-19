@@ -2,8 +2,15 @@ import axios from 'axios';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+let client, supabase;
+function getClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
+function getSupabase() {
+  if (!supabase) supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+  return supabase;
+}
 
 const COMPETITOR_QUERIES = [
   'AI automation agency',
@@ -33,7 +40,7 @@ export const researchAgent = {
       ? await serperSearch(query)
       : await braveSearch(query);
 
-    const summaryResp = await client.messages.create({
+    const summaryResp = await getClient().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 400,
       messages: [{
@@ -58,7 +65,7 @@ export const researchAgent = {
 
     const top = allResults.slice(0, 10);
 
-    const { error } = await supabase.from('jarvis_intel').insert({
+    const { error } = await getSupabase().from('jarvis_intel').insert({
       results: top,
       pulled_at: new Date().toISOString(),
     });
@@ -68,7 +75,7 @@ export const researchAgent = {
   },
 
   async getCompetitorIntel() {
-    const { data } = await supabase
+    const { data } = await getSupabase()
       .from('jarvis_intel')
       .select('*')
       .order('pulled_at', { ascending: false })

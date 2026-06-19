@@ -1,7 +1,11 @@
 import axios from 'axios';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let client;
+function getClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
 const IG_BASE = 'https://graph.facebook.com/v19.0';
 
 const igToken = () => process.env.INSTAGRAM_ACCESS_TOKEN;
@@ -67,7 +71,7 @@ export const socialAgent = {
 
     const dms = data.data || [];
     const drafts = await Promise.all(dms.slice(0, 5).map(async (dm) => {
-      const resp = await client.messages.create({
+      const resp = await getClient().messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 150,
         messages: [{
