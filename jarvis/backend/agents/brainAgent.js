@@ -1,7 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { memoryAgent } from './memoryAgent.js';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let client;
+function getClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
 
 const BASE_PROMPT = `You are Jarvis, Ben Curry's private AI operating system.
 
@@ -14,6 +18,8 @@ About Ben:
 You handle commands by routing to the right agent. When the user says "remember this", "add a memory", "learn that", or similar — save it as a memory. When they say "forget" something, remove it.
 
 If the user says "open [something]", respond with a URL in the url field.
+
+When the user asks to "make", "create", "generate", "build", or "draft" something (spreadsheet, agenda, report, plan, list, template, invoice, proposal, etc.), generate it as structured data in the "data" field. Use objects, arrays, and tables. The response field should be a short spoken summary. The data field should contain the full generated content.
 
 Always respond in JSON: { agent, action, response, data?, url? }
 Keep responses brief — they are spoken aloud.`;
@@ -95,7 +101,7 @@ export const brainAgent = {
   },
 
   async planAndExecute(command, context) {
-    const planResponse = await client.messages.create({
+    const planResponse = await getClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
       system: TASK_PLANNER_PROMPT,
@@ -141,14 +147,17 @@ export const brainAgent = {
       ? `${BASE_PROMPT}\n\nBen's saved memories:\n${memorySummary}`
       : BASE_PROMPT;
 
+    const isGenerateCommand = /\b(make|create|generate|build|draft|write)\b/i.test(command);
+    const maxTokens = isGenerateCommand ? 1024 : 256;
+
     const messages = [
       ...context,
       { role: 'user', content: `[Agent hint: ${detectedAgent}] Command: ${command}` },
     ];
 
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages,
     });
@@ -217,7 +226,7 @@ export const brainAgent = {
 ${memorySummary ? `\nBen's saved context:\n${memorySummary}` : ''}
 Keep it under 120 words, conversational, start with "Good morning, Ben."`;
 
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }],
