@@ -93,7 +93,7 @@ function parseDocumentData(data) {
   }
 
   for (const [key, value] of Object.entries(data)) {
-    if (key === 'tip' || key === 'type' || key === 'title' || key === 'week') continue;
+    if (key === 'tip' || key === 'type' || key === 'title' || key === 'week' || key === 'n8nWorkflow') continue;
     if (typeof value === 'string') {
       sections.push({ heading: key, lines: [value] });
     } else if (Array.isArray(value)) {
@@ -114,13 +114,25 @@ function parseDocumentData(data) {
   return sections;
 }
 
+function downloadJSON(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function DocumentPreview({ document: doc, onClose }) {
   if (!doc) return null;
 
   const title = doc.title || doc.response || 'Document';
   const sections = parseDocumentData(doc.data);
+  const n8nWorkflow = doc.data?.n8nWorkflow;
 
   const handlePDF = () => downloadPDF(title, sections);
+  const handleN8nExport = () => downloadJSON(`${title.replace(/\s+/g, '_').toLowerCase()}.n8n.json`, n8nWorkflow);
 
   const handleCSV = () => {
     const allRows = [];
@@ -186,6 +198,9 @@ export default function DocumentPreview({ document: doc, onClose }) {
         <div className="doc-preview-actions">
           <button className="modal-pdf-btn" onClick={handlePDF}>DOWNLOAD PDF</button>
           <button className="doc-csv-btn" onClick={handleCSV}>DOWNLOAD CSV</button>
+          {n8nWorkflow && (
+            <button className="doc-csv-btn" onClick={handleN8nExport}>EXPORT N8N JSON</button>
+          )}
         </div>
       </div>
     </div>

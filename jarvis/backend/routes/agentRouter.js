@@ -13,6 +13,7 @@ import { brainAgent } from '../agents/brainAgent.js';
 import { taskAgent } from '../agents/taskAgent.js';
 import { memoryAgent } from '../agents/memoryAgent.js';
 import { emailAgent } from '../agents/emailAgent.js';
+import { automationAgent } from '../agents/automationAgent.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -121,6 +122,14 @@ router.delete('/memory/:id', asyncHandler(async (req, res) => {
   res.json(await memoryAgent.deleteMemory(req.params.id));
 }));
 
+// ── Automation Agent ──────────────────────────────────────────
+router.post('/automation/brainstorm', asyncHandler(async (req, res) => {
+  res.json(await automationAgent.brainstorm(req.body.description));
+}));
+router.post('/automation/generate', asyncHandler(async (req, res) => {
+  res.json(await automationAgent.generateWorkflow(req.body.description, req.body.platform));
+}));
+
 // ── Browser Agent ─────────────────────────────────────────────
 router.post('/browser/open', asyncHandler(async (req, res) => {
   res.json(await browserAgent.resolveUrl(req.body.command));
@@ -151,7 +160,7 @@ router.get('/status', asyncHandler(async (_, res) => {
   res.json({
     uptime: process.uptime(),
     memoryMB: Math.round(mem.rss / 1024 / 1024),
-    agentCount: 6,
+    agentCount: 7,
     timestamp: Date.now(),
     integrations: {
       gmail: !!process.env.GOOGLE_REFRESH_TOKEN,
@@ -229,6 +238,16 @@ const AGENT_RUN_MAP = {
       message: `${eventCount} events today, ${emailCount} recent emails`,
       data: results,
     };
+  },
+  forge: async () => {
+    try {
+      const ideas = await automationAgent.brainstorm(
+        'General automation opportunities for a BCAutomations client using GHL, email, and social media.'
+      );
+      return { message: `${ideas.ideas?.length || 0} automation ideas ready`, data: ideas };
+    } catch (err) {
+      return { message: `Automation agent error — ${err.message}`, data: null };
+    }
   },
 };
 

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { memoryAgent } from './memoryAgent.js';
+import { automationAgent } from './automationAgent.js';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -32,6 +33,7 @@ Available agents and their capabilities:
 - calendar: today's schedule, create events
 - browser: open URLs/websites
 - tasks: todo list, ideas, reminders
+- automation: build or brainstorm automations/workflows/webhooks for Make.com or n8n
 - general: conversation, questions, advice
 
 Rules:
@@ -57,6 +59,7 @@ const AGENT_KEYWORDS = {
   social: ['post', 'instagram', 'facebook', 'schedule.*post', 'analytics', 'engagement', 'reply', 'draft.*post', 'create.*post', 'write.*post'],
   calendar: ['calendar', 'schedule', 'event', 'meeting', 'appointment', 'today', 'tomorrow'],
   browser: ['open', 'show me', 'go to', 'navigate', 'website', 'url'],
+  automation: ['automation', 'automate', 'workflow', 'n8n', 'make\\.com', 'zapier', 'webhook', 'scenario', 'integrate.*with', 'build.*flow'],
   tasks: ['task', 'idea', 'remind me', 'todo', 'to.?do', 'add.*task', 'save.*idea'],
 };
 
@@ -81,10 +84,17 @@ function isComplexCommand(command) {
 export const brainAgent = {
   async dispatch(command, context = []) {
     const lc = command.toLowerCase();
+    const detected = quickDetect(command);
 
     // Memory commands are fast-path — no LLM needed
-    if (quickDetect(command) === 'memory') {
+    if (detected === 'memory') {
       return this.handleMemory(command, lc);
+    }
+
+    // Automation/workflow builds always go through the dedicated agent —
+    // it guarantees real generated output instead of a conversational no-op.
+    if (detected === 'automation') {
+      return this.handleAutomation(command, lc);
     }
 
     // For complex multi-agent commands, use the LLM task planner
@@ -160,13 +170,44 @@ export const brainAgent = {
 
     let parsed;
     try {
-      const text = response.content[0].text;
+      const text = response.content[0].text.replace(/```json|```/g, '');
       parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
     } catch {
       parsed = { agent: detectedAgent, action: 'respond', response: response.content[0].text };
     }
 
     return { ...parsed, detectedAgent };
+  },
+
+  async handleAutomation(command, lc) {
+    const isBrainstorm = /brainstorm|suggest|what (automations?|workflows?)|give me.*idea/i.test(lc);
+
+    try {
+      if (isBrainstorm) {
+        const result = await automationAgent.brainstorm(command);
+        return {
+          agent: 'automation',
+          action: 'brainstorm',
+          response: `Got ${result.ideas?.length || 0} automation ideas for you.`,
+          data: result,
+        };
+      }
+
+      const platform = /\bmake(\.com)?\b/i.test(lc) ? 'make' : 'n8n';
+      const workflow = await automationAgent.generateWorkflow(command, platform);
+      return {
+        agent: 'automation',
+        action: 'generate',
+        response: workflow.summary || `Built a ${platform} workflow for that.`,
+        data: workflow,
+      };
+    } catch (err) {
+      return {
+        agent: 'automation',
+        action: 'error',
+        response: `I couldn't build that automation — ${err.message}`,
+      };
+    }
   },
 
   async handleMemory(command, lc) {

@@ -13,6 +13,7 @@ const AGENTS = [
   { id: 'radar', name: 'RADAR', role: 'Research & Intel Agent', color: '#fb923c', icon: 'R', handles: ['Web search', 'Competitor intel', 'News'] },
   { id: 'vault', name: 'VAULT', role: 'Files & Memory Agent', color: '#4ade80', icon: 'V', handles: ['Notes', 'Documents', 'Memories', 'Knowledge base'] },
   { id: 'pulse', name: 'PULSE', role: 'Email & Calendar Agent', color: '#facc15', icon: 'P', handles: ['Inbox', 'Send email', 'Scheduling', 'Events'] },
+  { id: 'forge', name: 'FORGE', role: 'Automation Builder Agent', color: '#60a5fa', icon: 'F', handles: ['n8n workflows', 'Make.com scenarios', 'Webhooks', 'Brainstorming'] },
 ];
 
 export default function AgentsPage() {
