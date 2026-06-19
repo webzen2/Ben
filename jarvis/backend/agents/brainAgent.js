@@ -1,7 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { memoryAgent } from './memoryAgent.js';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let client;
+function getClient() {
+  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+}
 
 const BASE_PROMPT = `You are Jarvis, Ben Curry's private AI operating system.
 
@@ -97,7 +101,7 @@ export const brainAgent = {
   },
 
   async planAndExecute(command, context) {
-    const planResponse = await client.messages.create({
+    const planResponse = await getClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
       system: TASK_PLANNER_PROMPT,
@@ -151,7 +155,7 @@ export const brainAgent = {
       { role: 'user', content: `[Agent hint: ${detectedAgent}] Command: ${command}` },
     ];
 
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       system: systemPrompt,
@@ -222,7 +226,7 @@ export const brainAgent = {
 ${memorySummary ? `\nBen's saved context:\n${memorySummary}` : ''}
 Keep it under 120 words, conversational, start with "Good morning, Ben."`;
 
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }],

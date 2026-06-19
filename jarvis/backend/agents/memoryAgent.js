@@ -1,13 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
+let supabase;
+function getSupabase() {
+  if (!supabase) {
+    supabase = createClient(
+      process.env.SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_KEY || ''
+    );
+  }
+  return supabase;
+}
 
 export const memoryAgent = {
   async addMemory({ content, category = 'general' }) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('jarvis_memories')
       .insert({ content, category })
       .select()
@@ -17,7 +23,7 @@ export const memoryAgent = {
   },
 
   async getMemories(category) {
-    let query = supabase
+    let query = getSupabase()
       .from('jarvis_memories')
       .select('*')
       .order('created_at', { ascending: false });
@@ -28,7 +34,7 @@ export const memoryAgent = {
   },
 
   async deleteMemory(id) {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('jarvis_memories')
       .delete()
       .eq('id', id);
@@ -37,7 +43,7 @@ export const memoryAgent = {
   },
 
   async getMemorySummary() {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('jarvis_memories')
       .select('content, category')
       .order('created_at', { ascending: false })
